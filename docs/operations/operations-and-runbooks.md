@@ -52,10 +52,29 @@ quarterly into staging and the drill result is recorded** — a backup that has
 never been restored is not a backup. Object storage: versioning + lifecycle.
 
 ## Runbook: data deletion & retention run
-Scheduled job (Phase 2, CPF-26): per-org policy → collect due records per
-category → skip legal holds → anonymise/delete per mode → write audit entries
-with counts → verification query proves no orphaned PII → monthly sample audit.
-Manual erasure (DSR): same pipeline, single-subject scope, dual-confirmation.
+Scheduled job (CPF-26, implemented): `apps/api/src/jobs/retention.ts`, run via
+`npm run retention:dry-run` (default, reports counts only) or
+`npm run retention:execute` (applies) from `apps/api` after `npm run build`,
+with `DATABASE_URL` set to the restricted `cpf_api` role. Per-org policy
+(`retention_policies`) → per-category evidence-event deletion measured from
+the owning session's terminal date → skip legal holds entirely → anonymise
+candidates whose sessions are all terminal and past the evidence window →
+write one `retention.sweep_executed` audit entry per org with counts → a
+per-category/per-org cap (default 5000) skips an org's execution outright if
+exceeded, requiring manual review before re-running. Always run a dry run
+first and review the printed report before `--execute`.
+
+**Scheduling**: run daily, off-peak. On Linux/managed cron:
+`0 3 * * * cd /app/apps/api && DATABASE_URL=... node dist/jobs/retention.js --execute >> /var/log/cpf/retention.log 2>&1`.
+On Windows (local/dev only) via Task Scheduler: create a daily trigger
+running `node.exe` with arguments `dist/jobs/retention.js --execute`, working
+directory `apps/api`, and `DATABASE_URL` set in the task's environment. Alert
+on any run whose report contains `skippedCapExceeded: true` for any org — it
+indicates either a misconfigured policy or an anomalous backlog and needs
+manual investigation before forcing execution with a higher cap.
+
+Manual erasure (DSR): same anonymisation/deletion shape, single-subject
+scope, dual-confirmation, via the data-rights workflow (not this sweep).
 
 ## Runbook: AI kill switch (when AI features exist)
 Org scope: org_admin toggles feature flag → gateway refuses invocations →

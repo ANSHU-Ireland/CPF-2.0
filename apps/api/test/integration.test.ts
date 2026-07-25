@@ -17,6 +17,7 @@ import pg from "pg";
 import { hashPassword, totp } from "@cpf/identity";
 import { buildApp } from "../src/app.js";
 import { closePool, getPool } from "../src/db/pool.js";
+import { runRetentionSweep } from "../src/jobs/retention.js";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 const DATABASE_ADMIN_URL = process.env.DATABASE_ADMIN_URL;
@@ -942,6 +943,144 @@ run("CPF platform end-to-end", () => {
     expect(anonymised.json().email).toContain("@anonymised.invalid");
     expect(anonymised.json().full_name).toBe("Erased on data-subject request");
   });
+
+  it("retention sweep: dry-run reports without deleting, execute deletes aged+unheld, holds suppress, audit recorded (CPF-26)", async () => {
+    const retOrgId = await createOrg("it-retention-org");
+    const retAdmin = await createActiveUser("admin-ret@it.cpf.test", PW);
+    const retHm = await createActiveUser("hm-ret@it.cpf.test", PW);
+    await addMembership(retOrgId, retAdmin, "org_admin");
+    await addMembership(retOrgId, retHm, "hiring_manager");
+    const retHmToken = await login("hm-ret@it.cpf.test", PW);
+    const retAdminToken = await login("admin-ret@it.cpf.test", PW);
+
+    // A short, easy-to-exceed retention window for this org only.
+    await admin.query(
+      `INSERT INTO retention_policies (organisation_id, evidence_retention_days, integrity_retention_days)
+       VALUES ($1, 1, 1)`,
+      [retOrgId],
+    );
+
+    async function seedAgedTerminalCandidate(email: string, onHold: boolean): Promise<{ candidateId: string; sessionId: string }> {
+      const job = await app.inject({
+        method: "POST",
+        url: `/v1/orgs/${retOrgId}/job-profiles`,
+        headers: authed(retHmToken),
+        payload: { title: "Backend Engineer", roleFamily: "software-engineering" },
+      });
+      expect(job.statusCode, job.body).toBe(201);
+      const candidate = await app.inject({
+        method: "POST",
+        url: `/v1/orgs/${retOrgId}/candidates`,
+        headers: authed(retHmToken),
+        payload: { email, fullName: "Retention Fixture" },
+      });
+      expect(candidate.statusCode, candidate.body).toBe(201);
+      const candId = candidate.json().id;
+      const invitation = await app.inject({
+        method: "POST",
+        url: `/v1/orgs/${retOrgId}/invitations`,
+        headers: authed(retHmToken),
+        payload: { candidateId: candId, jobProfileId: job.json().id, templateCode: "SE1" },
+      });
+      expect(invitation.statusCode, invitation.body).toBe(201);
+      const token = invitation.json().candidateAccessToken;
+      const landing = await app.inject({ method: "GET", url: `/v1/candidate/${token}` });
+      expect(landing.statusCode).toBe(200);
+      const accept = await app.inject({ method: "POST", url: `/v1/candidate/${token}/accept` });
+      expect(accept.statusCode, accept.body).toBe(201);
+      const sessId = accept.json().sessionId;
+
+      // Backdate into a terminal state, past the org's retention window.
+      await admin.query(
+        `UPDATE assessment_sessions SET status = 'expired', updated_at = now() - interval '10 days' WHERE id = $1`,
+        [sessId],
+      );
+      await admin.query(
+        `INSERT INTO evidence_events (organisation_id, session_id, category, event_type, payload)
+         VALUES ($1, $2, 'workspace_evidence', 'test_note', '{}'::jsonb),
+                ($1, $2, 'integrity_signal', 'focus_loss', '{}'::jsonb)`,
+        [retOrgId, sessId],
+      );
+      if (onHold) {
+        await admin.query(
+          `INSERT INTO legal_holds (organisation_id, candidate_id, reason) VALUES ($1, $2, 'Pending review')`,
+          [retOrgId, candId],
+        );
+      }
+      return { candidateId: candId, sessionId: sessId };
+    }
+
+    const eligible = await seedAgedTerminalCandidate("ret-eligible@candidate.test", false);
+    const held = await seedAgedTerminalCandidate("ret-held@candidate.test", true);
+
+    // Dry run: reports the eligible candidate/events but changes nothing.
+    const dryRun = await runRetentionSweep({ execute: false });
+    const dryOrgReport = dryRun.orgs.find((o) => o.organisationId === retOrgId);
+    expect(dryRun.dryRun).toBe(true);
+    expect(dryOrgReport).toBeDefined();
+    expect(dryOrgReport!.workspaceEvidenceDeleted).toBe(1);
+    expect(dryOrgReport!.integritySignalDeleted).toBe(1);
+    expect(dryOrgReport!.candidatesAnonymised).toBe(1);
+    expect(dryOrgReport!.skippedCapExceeded).toBe(false);
+
+    const stillThere = await admin.query("SELECT count(*)::int AS n FROM evidence_events WHERE session_id = $1", [
+      eligible.sessionId,
+    ]);
+    expect(stillThere.rows[0].n).toBe(2);
+
+    // Cap guard: a cap below the eligible count skips execution for this org entirely.
+    const capped = await runRetentionSweep({ execute: true, maxDeletionsPerOrgPerCategory: 0 });
+    const cappedReport = capped.orgs.find((o) => o.organisationId === retOrgId);
+    expect(cappedReport!.skippedCapExceeded).toBe(true);
+    const stillThereAfterCap = await admin.query(
+      "SELECT count(*)::int AS n FROM evidence_events WHERE session_id = $1",
+      [eligible.sessionId],
+    );
+    expect(stillThereAfterCap.rows[0].n).toBe(2);
+
+    // Execute: deletes only the aged, unheld candidate's events and anonymises it.
+    const executed = await runRetentionSweep({ execute: true });
+    const executedReport = executed.orgs.find((o) => o.organisationId === retOrgId);
+    expect(executed.dryRun).toBe(false);
+    expect(executedReport!.workspaceEvidenceDeleted).toBe(1);
+    expect(executedReport!.integritySignalDeleted).toBe(1);
+    expect(executedReport!.candidatesAnonymised).toBe(1);
+    expect(executedReport!.skippedCapExceeded).toBe(false);
+
+    const eligibleEventsAfter = await admin.query(
+      "SELECT count(*)::int AS n FROM evidence_events WHERE session_id = $1",
+      [eligible.sessionId],
+    );
+    expect(eligibleEventsAfter.rows[0].n).toBe(0);
+    const eligibleCandidateAfter = await app.inject({
+      method: "GET",
+      url: `/v1/orgs/${retOrgId}/candidates/${eligible.candidateId}`,
+      headers: authed(retAdminToken),
+    });
+    expect(eligibleCandidateAfter.json().status).toBe("anonymised");
+    expect(eligibleCandidateAfter.json().email).toContain("@anonymised.invalid");
+
+    // The legal hold fully suppressed deletion and anonymisation.
+    const heldEventsAfter = await admin.query(
+      "SELECT count(*)::int AS n FROM evidence_events WHERE session_id = $1",
+      [held.sessionId],
+    );
+    expect(heldEventsAfter.rows[0].n).toBe(2);
+    const heldCandidateAfter = await app.inject({
+      method: "GET",
+      url: `/v1/orgs/${retOrgId}/candidates/${held.candidateId}`,
+      headers: authed(retAdminToken),
+    });
+    expect(heldCandidateAfter.json().status).not.toBe("anonymised");
+
+    // Audit entry recorded for the executed run.
+    const auditRow = await admin.query(
+      `SELECT metadata FROM audit_log WHERE action = 'retention.sweep_executed' AND entity_id = $1 ORDER BY id DESC LIMIT 1`,
+      [retOrgId],
+    );
+    expect(auditRow.rowCount).toBe(1);
+    expect(auditRow.rows[0].metadata.candidatesAnonymised).toBe(1);
+  }, 60_000);
 
   it("activates invited users via single-use tokens and enforces password policy", async () => {
     const invite = await app.inject({
