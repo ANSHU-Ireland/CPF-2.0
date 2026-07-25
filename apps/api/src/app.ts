@@ -10,8 +10,10 @@ import {
 } from "@cpf/assessment-framework";
 import Fastify, { type FastifyError, type FastifyInstance } from "fastify";
 import { randomUUID } from "node:crypto";
+import type { Writable } from "node:stream";
 import { createPool } from "./db/pool.js";
 import { buildOpenApiSpec, captureRoutes } from "./openapi.js";
+import { LOG_REDACT_PATHS } from "./modules/constants.js";
 import { InMemoryRateLimitStore } from "./modules/rate-limit.js";
 import { registerAuthRoutes } from "./modules/auth/routes.js";
 import { registerCandidatePortalRoutes } from "./modules/candidate/portal.js";
@@ -41,6 +43,12 @@ export interface BuildAppOptions {
     strictCapacity: number;
     strictRefillPerSecond: number;
   };
+  /**
+   * Test-only hook: capture log output to a stream instead of stdout, and
+   * force level to "info" (overriding the NODE_ENV=test silent default) so
+   * redaction behaviour can be observed. Never set outside tests.
+   */
+  loggerStream?: Writable;
 }
 
 /**
@@ -58,8 +66,9 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   if (options.databaseUrl) createPool(options.databaseUrl);
   const app = Fastify({
     logger: {
-      level: process.env.NODE_ENV === "test" ? "silent" : "info",
-      redact: ["req.headers.authorization", "req.headers.cookie"],
+      level: options.loggerStream ? "info" : process.env.NODE_ENV === "test" ? "silent" : "info",
+      redact: LOG_REDACT_PATHS,
+      ...(options.loggerStream ? { stream: options.loggerStream } : {}),
     },
     genReqId: () => randomUUID(),
     bodyLimit: 262_144, // 256 KiB — framework payloads are small by design
@@ -144,6 +153,21 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
         error: {
           code: "PAYLOAD_TOO_LARGE",
           message: "The request body exceeds the allowed size limit.",
+          requestId: request.id,
+          retryable: false,
+        },
+      });
+    }
+    // Any other well-known 4xx raised by Fastify itself (malformed JSON body,
+    // unsupported content-type, oversized headers, etc.) is a client mistake,
+    // not a server fault — classify it honestly instead of falling through to
+    // a 500 (found via Step 29 ingestion fuzz testing: malformed JSON bodies
+    // were previously misreported as INTERNAL_ERROR).
+    if (typeof error.statusCode === "number" && error.statusCode >= 400 && error.statusCode < 500) {
+      return reply.status(error.statusCode).send({
+        error: {
+          code: error.code ?? "BAD_REQUEST",
+          message: "The request could not be processed.",
           requestId: request.id,
           retryable: false,
         },

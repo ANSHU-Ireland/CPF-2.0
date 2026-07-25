@@ -40,3 +40,10 @@ export const SESSION_ABSOLUTE_TTL_HOURS = 24;
 /** Sensitive actions (e.g. org data export) require re-authentication within this window. */
 export const STEP_UP_FRESHNESS_MINUTES = 5;
 
+/**
+ * pino redaction paths shared by the real app logger and the redaction unit
+ * test (CPF-48 / delivery plan Step 29), so the test always exercises the
+ * exact config the server runs with rather than a hand-copied duplicate.
+ */
+export const LOG_REDACT_PATHS = ["req.headers.authorization", "req.headers.cookie"];
+

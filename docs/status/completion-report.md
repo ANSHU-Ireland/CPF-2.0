@@ -1,7 +1,8 @@
 # Completion Report — CPF Enterprise Ecosystem
 
-Reporting date: 2026-07-25 (fourth build cycle — Phase C hiring-workflow depth:
-adjudication, retention, notifications, candidate import, rate limiting) ·
+Reporting date: 2026-07-25 (fifth build cycle — delivery-plan Steps 25–29:
+supply-chain/SAST CI, session & authz hardening, authorization-matrix
+automation, threat-model refresh + ingestion fuzz testing) ·
 Reporting standard: directive §21 (no premature completion claims). This is
 the authoritative status document.
 
@@ -18,7 +19,7 @@ remaining)** — employer portal, reviewer workspace, candidate portal, and
 platform administration. No compliance certification is claimed. No real
 candidate data has ever entered this system.
 
-## Fully implemented and tested — 155 automated tests green, 1 intentionally skipped (verified locally 2026-07-25)
+## Fully implemented and tested — 197 automated tests green, 1 intentionally skipped (verified locally 2026-07-25)
 
 | Layer | Evidence |
 |---|---|
@@ -101,6 +102,13 @@ request in the API access log returned 200; no console/network errors.
    response on a matching retry and rejects a same-key-different-body replay
    with 422, rather than double-creating records on client retry.
 
+## Fifth build cycle additions (Steps 25–29, disclosed per §21)
+
+1. **Supply-chain & static analysis in CI (CPF-45):** `.github/workflows/security.yml` adds secret scanning (gitleaks, full history), CodeQL (javascript-typescript), SBOM generation (CycloneDX), and PR dependency review. Fixed a genuine pre-existing lockfile defect found while wiring this up: `@types/react`'s dependency on `csstype` had no resolved entry in `package-lock.json`, silently never installed.
+2. **Session & authorization hardening (CPF-46):** sliding session renewal clamped to a hard 24h absolute cap regardless of activity; an admin endpoint to remove a user's org role, which revokes all of that user's active sessions and refuses to leave an org with zero admins; step-up re-authentication (password + TOTP if enrolled) gating a new admin-only org data-export endpoint.
+3. **Authorization matrix automation (CPF-47):** a table-driven test asserting deny-by-default across every org-scoped route (30 distinct path templates, 37 method combinations) × every role (5 org roles, no token, cross-org), cross-checked at test time against the live OpenAPI spec so an unlisted new route breaks the test immediately. Confirmed two roles (`learning_admin`, `support_agent`) are correctly denied by literally every existing route, since neither is wired to any endpoint yet.
+4. **Threat-model refresh + ingestion fuzz testing (Step 29, MILESTONE):** `docs/security/security-architecture-and-threat-model.md` rewritten with a per-threat status column reflecting implemented reality; new fuzz test suite sends malformed JSON, oversized bodies (both transport `bodyLimit` and application-level checks), unicode (emoji/CJK/RTL), and prototype-pollution-shaped keys (`__proto__`, `constructor.prototype`) to the candidate evidence-ingestion endpoint — every case resolves to a safe, correctly classified status and the process's real `Object.prototype` is never mutated. Log redaction verified two ways: a unit test of the exact redact config against a raw pino instance, and an end-to-end capture of a real authenticated request's log stream confirming a genuine bearer token is never emitted.
+
 ## Defects found and fixed by our own tests this cycle (disclosed per §21)
 
 1. Superuser DB connection silently bypassed RLS → dedicated `cpf_app`/`cpf_api`
@@ -125,6 +133,13 @@ request in the API access log returned 200; no console/network errors.
    directly under a page's `<h1>` with no `<h2>` in between (axe
    `heading-order`) on every page's empty/error state — both now render
    `<h2>`, fixing the violation across every page that uses them.
+8. **(Fifth cycle, caught by Step 29's ingestion fuzz test)** The global error
+   handler fell through to a blanket `500 INTERNAL_ERROR` for any Fastify-
+   native error it did not explicitly special-case — including malformed-JSON
+   request bodies, which Fastify itself already classifies as `400` —
+   misreporting a client mistake as a server fault. Fixed: any error carrying
+   a Fastify-assigned 4xx `statusCode` not already special-cased is now
+   honestly forwarded with that status instead of defaulting to 500.
 
 ## Implemented, awaiting first CI execution
 
@@ -135,8 +150,12 @@ environment).
 
 ## Designed but not implemented (honest boundary)
 
-- OpenAPI generation (CPF-44), SBOM + secret scanning + SAST in CI (CPF-45).
-- File uploads beyond the CSV import path (e.g. resume/document attachments).
+- File uploads beyond the CSV import path (e.g. resume/document attachments) —
+  no binary upload/malware-scanning pipeline exists yet; not required until one is added.
+- AI gateway, plugin/module framework, learning module, workforce intelligence,
+  platform admin console (support/compliance/analytics) — none started (Steps 35–46).
+- Production container, staging deployment, observability, backup/restore drill
+  — none run yet (Steps 31–34).
 - AI features: **none exist**; gateway is a governed design (ADR-0005). The
   candidate portal explicitly states no AI assistant is configured, rather
   than simulating one.
@@ -164,9 +183,9 @@ repo secret rotation (founder action).
 
 ## Requires security review
 
-External penetration test before pilot · TOTP-secret envelope encryption
-(deployment) · evidence-ingestion threat-model refresh when the workspace
-client lands.
+External penetration test before pilot (not run in this environment) ·
+TOTP-secret envelope encryption (deployment) · backup/restore drill (Step 34,
+not yet run) · production deployment hardening review (Steps 31–32).
 
 ## Requires commercial decision (founders)
 
@@ -193,16 +212,16 @@ measurement.
    operability — this is not a substitute for a manual assistive-technology
    audit before pilot.
 
-## Verification evidence (commands, this machine, 2026-07-25)
+## Verification evidence (commands, this machine, 2026-07-25, fifth cycle)
 
-- `npm run typecheck` — clean, strict, all workspaces (including @cpf/web).
-- `npm test` — 134 passed / 0 failed / 1 intentionally-skipped placeholder
-  (framework 60, identity 17, API 15+1 skip, web 42) with `DATABASE_URL`
-  (restricted role) + `DATABASE_ADMIN_URL` set.
+- `npm run typecheck` — clean, strict, all 4 workspaces (including @cpf/web).
+- `npm test` — 197 passed / 0 failed / 1 intentionally-skipped, run twice
+  consecutively for stability (framework 65, identity 17, API 74+1 skip,
+  web 48) with `DATABASE_URL` (restricted role) + `DATABASE_ADMIN_URL` set.
 - `npm audit` — 0 vulnerabilities (across all workspaces incl. @cpf/web).
 - `npm run build` — succeeds (framework + identity + API build ordering).
-- `npx vite build` (@cpf/web) — succeeds, 105 modules.
+- `npx vite build` (@cpf/web) — succeeds.
 - Live boot: platform mode, bootstrap → login → org creation over HTTP.
 - Live web smoke test: sign-in → real API data rendered → session-restore →
-  stub-page/404/sign-out all correct (browser-automated, see above; predates
-  the stub pages being replaced with real implementations this cycle).
+  stub-page/404/sign-out all correct (browser-automated; predates the stub
+  pages being replaced with real implementations, kept for history).
