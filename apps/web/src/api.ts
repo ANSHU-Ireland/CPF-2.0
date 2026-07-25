@@ -83,11 +83,42 @@ async function request<T>(
   return json as T;
 }
 
+async function requestText<T>(method: string, path: string, body: string, contentType: string): Promise<T> {
+  const headers: Record<string, string> = { "content-type": contentType };
+  if (sessionToken) headers.authorization = `Bearer ${sessionToken}`;
+  let response: Response;
+  try {
+    response = await fetch(path, { method, headers, body });
+  } catch {
+    throw new ApiError(0, {
+      code: "NETWORK_ERROR",
+      message: "The CPF API could not be reached. Check your connection and try again.",
+      requestId: "n/a",
+      retryable: true,
+    });
+  }
+  const json: unknown = await response.json().catch(() => null);
+  if (!response.ok) {
+    const errorBody =
+      json && typeof json === "object" && "error" in json
+        ? (json as ApiErrorBody).error
+        : {
+            code: "UNEXPECTED_RESPONSE",
+            message: "The server returned an unexpected response.",
+            requestId: "n/a",
+            retryable: false,
+          };
+    throw new ApiError(response.status, errorBody);
+  }
+  return json as T;
+}
+
 export const api = {
   get: <T>(path: string, opts?: { auth?: boolean }) => request<T>("GET", path, undefined, opts),
   post: <T>(path: string, body?: unknown, opts?: { auth?: boolean }) => request<T>("POST", path, body, opts),
   put: <T>(path: string, body?: unknown, opts?: { auth?: boolean }) => request<T>("PUT", path, body, opts),
   delete: <T>(path: string, opts?: { auth?: boolean }) => request<T>("DELETE", path, undefined, opts),
+  postText: <T>(path: string, body: string, contentType: string) => requestText<T>("POST", path, body, contentType),
 };
 
 // ---------------------------------------------------------------------------
@@ -186,6 +217,12 @@ export interface CandidateRow {
   full_name: string;
   status: string;
   created_at: string;
+}
+
+export interface CandidateImportResult {
+  created: number;
+  skippedDuplicates: Array<{ line: number; email: string }>;
+  invalid: Array<{ line: number; reason: string }>;
 }
 
 export interface JobProfileRow {

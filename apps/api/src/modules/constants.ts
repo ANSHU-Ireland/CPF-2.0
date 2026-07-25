@@ -30,3 +30,5 @@ export const MAX_EVENT_PAYLOAD_BYTES = 32 * 1024;
 export const INVITATION_TTL_DAYS = 14;
 export const ACTIVATION_TTL_HOURS = 72;
 export const DSR_DUE_DAYS = 30;
+export const CANDIDATE_IMPORT_MAX_BYTES = 1024 * 1024;
+export const CANDIDATE_IMPORT_MAX_ROWS = 2000;

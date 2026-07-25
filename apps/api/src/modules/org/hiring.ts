@@ -5,9 +5,10 @@ import { invitationMachine, TEMPLATE_CODES } from "@cpf/assessment-framework";
 import { appendAudit } from "../../db/audit.js";
 import { withOrgTx } from "../../db/pool.js";
 import { requireOrgRole, sendError } from "../auth/guards.js";
-import { INVITATION_TTL_DAYS } from "../constants.js";
+import { INVITATION_TTL_DAYS, CANDIDATE_IMPORT_MAX_BYTES, CANDIDATE_IMPORT_MAX_ROWS } from "../constants.js";
 import { invitationIssuedTemplate } from "../notifications/templates.js";
 import { enqueueOutboundMessage } from "../notifications/queue.js";
+import { parseCsvLine, splitCsvLines, neutraliseCsvFormula } from "./csv.js";
 
 const CreateJobProfileSchema = z.object({
   title: z.string().min(2).max(200),
@@ -104,6 +105,103 @@ export function registerHiringRoutes(app: FastifyInstance): void {
       }
       throw error;
     }
+  });
+
+  app.post("/v1/orgs/:orgId/candidates/import", { preHandler: hiringRoles, bodyLimit: CANDIDATE_IMPORT_MAX_BYTES }, async (request, reply) => {
+    const contentType = request.headers["content-type"] ?? "";
+    if (!contentType.includes("csv") && !contentType.includes("text/plain")) {
+      return sendError(reply, 415, "UNSUPPORTED_MEDIA_TYPE", "Import body must be text/csv.", request.id);
+    }
+    const raw = typeof request.body === "string" ? request.body : "";
+    const lines = splitCsvLines(raw);
+    if (lines.length === 0) {
+      return sendError(reply, 400, "REQUEST_VALIDATION_FAILED", "The CSV file is empty.", request.id);
+    }
+    const header = parseCsvLine(lines[0]!).map((h) => h.toLowerCase());
+    if (header.length < 2 || header[0] !== "name" || header[1] !== "email") {
+      return sendError(reply, 400, "REQUEST_VALIDATION_FAILED", 'The CSV header must be exactly "name,email".', request.id);
+    }
+    const dataLines = lines.slice(1);
+    if (dataLines.length > CANDIDATE_IMPORT_MAX_ROWS) {
+      return sendError(
+        reply,
+        413,
+        "IMPORT_TOO_LARGE",
+        `The import contains ${dataLines.length} rows, exceeding the limit of ${CANDIDATE_IMPORT_MAX_ROWS}.`,
+        request.id,
+      );
+    }
+
+    const orgId = request.orgId!;
+    const auth = request.auth!;
+    const emailSchema = z.string().email().max(320);
+    const nameSchema = z.string().min(1).max(200);
+
+    interface ValidRow {
+      line: number;
+      email: string;
+      fullName: string;
+    }
+    const invalid: Array<{ line: number; reason: string }> = [];
+    const skippedDuplicates: Array<{ line: number; email: string }> = [];
+    const valid: ValidRow[] = [];
+    const seenEmails = new Map<string, number>(); // lowercased email -> first line number
+
+    dataLines.forEach((line, index) => {
+      const lineNumber = index + 2; // account for the header row, 1-indexed
+      const fields = parseCsvLine(line);
+      const [name, email] = fields;
+      if (!name || !email) {
+        invalid.push({ line: lineNumber, reason: "Both name and email are required." });
+        return;
+      }
+      const nameResult = nameSchema.safeParse(name);
+      if (!nameResult.success) {
+        invalid.push({ line: lineNumber, reason: "Name is invalid or too long." });
+        return;
+      }
+      const emailResult = emailSchema.safeParse(email);
+      if (!emailResult.success) {
+        invalid.push({ line: lineNumber, reason: "E-mail address is invalid." });
+        return;
+      }
+      const key = emailResult.data.toLowerCase();
+      if (seenEmails.has(key)) {
+        skippedDuplicates.push({ line: lineNumber, email: emailResult.data });
+        return;
+      }
+      seenEmails.set(key, lineNumber);
+      valid.push({ line: lineNumber, email: emailResult.data, fullName: neutraliseCsvFormula(nameResult.data) });
+    });
+
+    const created = await withOrgTx(orgId, async (client) => {
+      let createdCount = 0;
+      for (const row of valid) {
+        const existing = await client.query("SELECT 1 FROM candidates WHERE organisation_id = $1 AND email = $2", [
+          orgId,
+          row.email,
+        ]);
+        if ((existing.rowCount ?? 0) > 0) {
+          skippedDuplicates.push({ line: row.line, email: row.email });
+          continue;
+        }
+        await client.query(
+          `INSERT INTO candidates (organisation_id, email, full_name) VALUES ($1, $2, $3)`,
+          [orgId, row.email, row.fullName],
+        );
+        createdCount += 1;
+      }
+      await appendAudit(client, {
+        organisationId: orgId,
+        actorUserId: auth.userId,
+        action: "hiring.candidates_imported",
+        entityType: "candidate",
+        metadata: { created: createdCount, skippedDuplicates: skippedDuplicates.length, invalid: invalid.length },
+      });
+      return createdCount;
+    });
+
+    return reply.status(201).send({ created, skippedDuplicates, invalid });
   });
 
   app.get("/v1/orgs/:orgId/candidates", { preHandler: hiringRoles }, async (request, reply) => {

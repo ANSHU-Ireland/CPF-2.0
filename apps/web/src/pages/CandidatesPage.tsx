@@ -1,6 +1,6 @@
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
 import { useParams } from "react-router";
-import { api, type CandidateRow, type JobProfileRow, type TemplateSummary } from "../api.js";
+import { api, type CandidateImportResult, type CandidateRow, type JobProfileRow, type TemplateSummary } from "../api.js";
 import { Alert, EmptyState, ErrorState, Field, Loading, Modal, StatusPill, formatDate } from "../ui.js";
 import { useQuery } from "../useQuery.js";
 
@@ -37,6 +37,7 @@ export function CandidatesPage(): ReactNode {
 
   const [inviteFor, setInviteFor] = useState<CandidateRow | null>(null);
   const [invited, setInvited] = useState<InvitationCreated | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   async function onCreate(event: FormEvent): Promise<void> {
     event.preventDefault();
@@ -62,9 +63,14 @@ export function CandidatesPage(): ReactNode {
           <h1>Candidates</h1>
           <p className="muted">One record per candidate per organisation</p>
         </div>
-        <button type="button" className="btn" onClick={() => setCreateOpen(true)}>
-          Add candidate
-        </button>
+        <div className="row">
+          <button type="button" className="btn secondary" onClick={() => setImportOpen(true)}>
+            Import CSV
+          </button>
+          <button type="button" className="btn" onClick={() => setCreateOpen(true)}>
+            Add candidate
+          </button>
+        </div>
       </div>
 
       <form
@@ -163,6 +169,16 @@ export function CandidatesPage(): ReactNode {
           </button>
         </form>
       </Modal>
+
+      {importOpen && orgId ? (
+        <ImportModal
+          orgId={orgId}
+          onClose={() => {
+            setImportOpen(false);
+            candidates.reload();
+          }}
+        />
+      ) : null}
 
       {inviteFor && orgId ? (
         <InviteModal
@@ -281,6 +297,97 @@ function InviteModal({
             </>
           ) : null}
         </form>
+      )}
+    </Modal>
+  );
+}
+
+function rejectsCsv(result: CandidateImportResult): string {
+  const rows = [
+    "line,reason",
+    ...result.skippedDuplicates.map((r) => `${r.line},"Duplicate e-mail: ${r.email}"`),
+    ...result.invalid.map((r) => `${r.line},"${r.reason.replace(/"/g, '""')}"`),
+  ];
+  return rows.join("\n");
+}
+
+function downloadRejects(result: CandidateImportResult): void {
+  const blob = new Blob([rejectsCsv(result)], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "candidate-import-rejects.csv";
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+/** Bulk candidate import: upload a "name,email" CSV, show a partition report. */
+function ImportModal({ orgId, onClose }: { orgId: string; onClose: () => void }): ReactNode {
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [fileText, setFileText] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [result, setResult] = useState<CandidateImportResult | null>(null);
+
+  async function onFileChange(event: ChangeEvent<HTMLInputElement>): Promise<void> {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setFileName(file.name);
+    setFileText(await file.text());
+    setFormError(null);
+    setResult(null);
+  }
+
+  async function onImport(): Promise<void> {
+    if (!fileText) return;
+    setSubmitting(true);
+    setFormError(null);
+    try {
+      const res = await api.postText<CandidateImportResult>(
+        `/v1/orgs/${orgId}/candidates/import`,
+        fileText,
+        "text/csv",
+      );
+      setResult(res);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Import failed.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Modal open title="Import candidates from CSV" onClose={onClose}>
+      {result ? (
+        <div className="stack">
+          <Alert kind={result.invalid.length > 0 || result.skippedDuplicates.length > 0 ? "warning" : "success"}>
+            Imported {result.created} candidate{result.created === 1 ? "" : "s"}. {result.skippedDuplicates.length}{" "}
+            duplicate{result.skippedDuplicates.length === 1 ? "" : "s"} skipped, {result.invalid.length} invalid row
+            {result.invalid.length === 1 ? "" : "s"}.
+          </Alert>
+          {result.skippedDuplicates.length > 0 || result.invalid.length > 0 ? (
+            <button type="button" className="btn secondary" onClick={() => downloadRejects(result)}>
+              Download rejected rows (CSV)
+            </button>
+          ) : null}
+          <button type="button" className="btn" onClick={onClose}>
+            Done
+          </button>
+        </div>
+      ) : (
+        <div className="stack">
+          {formError ? <Alert kind="danger">{formError}</Alert> : null}
+          <p className="muted">
+            Upload a CSV with a header row of <code>name,email</code>. Up to 2000 rows, 1MB.
+          </p>
+          <Field label="CSV file">
+            {({ id }) => <input id={id} type="file" accept=".csv,text/csv" onChange={(e) => void onFileChange(e)} />}
+          </Field>
+          {fileName ? <p className="muted">Selected: {fileName}</p> : null}
+          <button type="button" className="btn" disabled={!fileText || submitting} onClick={() => void onImport()}>
+            {submitting ? "Importing…" : "Import"}
+          </button>
+        </div>
       )}
     </Modal>
   );

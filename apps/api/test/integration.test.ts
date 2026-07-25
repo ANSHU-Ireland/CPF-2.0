@@ -1221,6 +1221,83 @@ run("CPF platform end-to-end", () => {
     expect(deadAudit.rowCount).toBe(1);
   }, 60_000);
 
+  it("imports candidates from CSV: partitions valid/duplicate/invalid rows and enforces limits (CPF-35)", async () => {
+    const importOrgId = await createOrg("it-import-org");
+    const importAdmin = await createActiveUser("admin-import@it.cpf.test", PW);
+    await addMembership(importOrgId, importAdmin, "org_admin");
+    const importToken = await login("admin-import@it.cpf.test", PW);
+
+    // Pre-existing candidate to exercise the "duplicate vs existing DB row" path.
+    const preexisting = await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${importOrgId}/candidates`,
+      headers: authed(importToken),
+      payload: { email: "already-here@candidate.test", fullName: "Already Here" },
+    });
+    expect(preexisting.statusCode, preexisting.body).toBe(201);
+
+    const csv =
+      "name,email\n" +
+      "Priya Example,priya@candidate.test\n" +
+      "Duplicate In File,dupe@candidate.test\n" +
+      "Duplicate In File Again,dupe@candidate.test\n" +
+      "Already Here,already-here@candidate.test\n" +
+      "No Email,\n" +
+      "Bad Email,not-an-email\n" +
+      '=SUM(A1:A9),formula@candidate.test\n';
+
+    const importRes = await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${importOrgId}/candidates/import`,
+      headers: { ...authed(importToken), "content-type": "text/csv" },
+      payload: csv,
+    });
+    expect(importRes.statusCode, importRes.body).toBe(201);
+    const result = importRes.json();
+    expect(result.created).toBe(3); // Priya, dupe (first occurrence), formula-name row
+    expect(result.skippedDuplicates).toHaveLength(2); // in-file dupe + already-in-DB dupe
+    expect(result.invalid).toHaveLength(2); // missing email + malformed email
+
+    // CSV-formula-injection defence: a leading "=" is neutralised before storage.
+    const stored = await admin.query<{ full_name: string }>(
+      "SELECT full_name FROM candidates WHERE organisation_id = $1 AND email = 'formula@candidate.test'",
+      [importOrgId],
+    );
+    expect(stored.rows[0]!.full_name.startsWith("'=")).toBe(true);
+
+    // Row-count limit → 413.
+    const tooManyRows = ["name,email", ...Array.from({ length: 2001 }, (_, i) => `Row ${i},row${i}@candidate.test`)].join(
+      "\n",
+    );
+    const tooMany = await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${importOrgId}/candidates/import`,
+      headers: { ...authed(importToken), "content-type": "text/csv" },
+      payload: tooManyRows,
+    });
+    expect(tooMany.statusCode).toBe(413);
+    expect(tooMany.json().error.code).toBe("IMPORT_TOO_LARGE");
+
+    // Byte-size limit → 413 (Fastify route bodyLimit).
+    const tooBig = await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${importOrgId}/candidates/import`,
+      headers: { ...authed(importToken), "content-type": "text/csv" },
+      payload: "name,email\n" + "a".repeat(2 * 1024 * 1024),
+    });
+    expect(tooBig.statusCode).toBe(413);
+    expect(tooBig.json().error.code).toBe("PAYLOAD_TOO_LARGE");
+
+    // Audit entry recorded with counts. audit_log is append-only and never
+    // truncated between runs, so pick the most recent matching row.
+    const auditRow = await admin.query(
+      "SELECT metadata FROM audit_log WHERE action = 'hiring.candidates_imported' AND organisation_id = $1 ORDER BY id DESC LIMIT 1",
+      [importOrgId],
+    );
+    expect(auditRow.rowCount).toBe(1);
+    expect(auditRow.rows[0].metadata.created).toBe(3);
+  }, 60_000);
+
   it("activates invited users via single-use tokens and enforces password policy", async () => {
     const invite = await app.inject({
       method: "POST",

@@ -51,6 +51,11 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     bodyLimit: 262_144, // 256 KiB — framework payloads are small by design
   });
 
+  // CSV import bodies (candidate import) arrive as text/csv, not JSON.
+  app.addContentTypeParser("text/csv", { parseAs: "string" }, (_req, body, done) => {
+    done(null, body);
+  });
+
   // Baseline security headers on every response.
   app.addHook("onSend", async (_req, reply) => {
     reply.header("x-content-type-options", "nosniff");
@@ -77,6 +82,16 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
         error: {
           code: "REQUEST_VALIDATION_FAILED",
           message: "The request body or parameters are invalid.",
+          requestId: request.id,
+          retryable: false,
+        },
+      });
+    }
+    if (error.code === "FST_ERR_CTP_BODY_TOO_LARGE") {
+      return reply.status(413).send({
+        error: {
+          code: "PAYLOAD_TOO_LARGE",
+          message: "The request body exceeds the allowed size limit.",
           requestId: request.id,
           retryable: false,
         },
