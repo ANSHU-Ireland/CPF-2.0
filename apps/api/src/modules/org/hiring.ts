@@ -9,6 +9,7 @@ import { INVITATION_TTL_DAYS, CANDIDATE_IMPORT_MAX_BYTES, CANDIDATE_IMPORT_MAX_R
 import { invitationIssuedTemplate } from "../notifications/templates.js";
 import { enqueueOutboundMessage } from "../notifications/queue.js";
 import { parseCsvLine, splitCsvLines, neutraliseCsvFormula } from "./csv.js";
+import { runIdempotent, IdempotencyConflictError } from "../idempotency.js";
 
 const CreateJobProfileSchema = z.object({
   title: z.string().min(2).max(200),
@@ -174,34 +175,55 @@ export function registerHiringRoutes(app: FastifyInstance): void {
       valid.push({ line: lineNumber, email: emailResult.data, fullName: neutraliseCsvFormula(nameResult.data) });
     });
 
-    const created = await withOrgTx(orgId, async (client) => {
-      let createdCount = 0;
-      for (const row of valid) {
-        const existing = await client.query("SELECT 1 FROM candidates WHERE organisation_id = $1 AND email = $2", [
-          orgId,
-          row.email,
-        ]);
-        if ((existing.rowCount ?? 0) > 0) {
-          skippedDuplicates.push({ line: row.line, email: row.email });
-          continue;
-        }
-        await client.query(
-          `INSERT INTO candidates (organisation_id, email, full_name) VALUES ($1, $2, $3)`,
-          [orgId, row.email, row.fullName],
-        );
-        createdCount += 1;
-      }
-      await appendAudit(client, {
-        organisationId: orgId,
-        actorUserId: auth.userId,
-        action: "hiring.candidates_imported",
-        entityType: "candidate",
-        metadata: { created: createdCount, skippedDuplicates: skippedDuplicates.length, invalid: invalid.length },
-      });
-      return createdCount;
-    });
+    const idempotencyKey = request.headers["idempotency-key"];
+    let outcome: { status: number; body: unknown };
+    try {
+      outcome = await withOrgTx(orgId, async (client) => {
+        const doWork = async (): Promise<{ status: number; body: unknown }> => {
+          let createdCount = 0;
+          for (const row of valid) {
+            const existing = await client.query("SELECT 1 FROM candidates WHERE organisation_id = $1 AND email = $2", [
+              orgId,
+              row.email,
+            ]);
+            if ((existing.rowCount ?? 0) > 0) {
+              skippedDuplicates.push({ line: row.line, email: row.email });
+              continue;
+            }
+            await client.query(
+              `INSERT INTO candidates (organisation_id, email, full_name) VALUES ($1, $2, $3)`,
+              [orgId, row.email, row.fullName],
+            );
+            createdCount += 1;
+          }
+          await appendAudit(client, {
+            organisationId: orgId,
+            actorUserId: auth.userId,
+            action: "hiring.candidates_imported",
+            entityType: "candidate",
+            metadata: { created: createdCount, skippedDuplicates: skippedDuplicates.length, invalid: invalid.length },
+          });
+          return { status: 201, body: { created: createdCount, skippedDuplicates, invalid } };
+        };
 
-    return reply.status(201).send({ created, skippedDuplicates, invalid });
+        if (typeof idempotencyKey === "string" && idempotencyKey.length > 0) {
+          const idem = await runIdempotent(
+            client,
+            { scope: "org:candidate-import", actorKey: orgId, idempotencyKey, requestBody: raw },
+            doWork,
+          );
+          return { status: idem.status, body: idem.body };
+        }
+        return doWork();
+      });
+    } catch (error) {
+      if (error instanceof IdempotencyConflictError) {
+        return sendError(reply, 422, "IDEMPOTENCY_KEY_CONFLICT", error.message, request.id);
+      }
+      throw error;
+    }
+
+    return reply.status(outcome.status).send(outcome.body);
   });
 
   app.get("/v1/orgs/:orgId/candidates", { preHandler: hiringRoles }, async (request, reply) => {
@@ -271,77 +293,107 @@ export function registerHiringRoutes(app: FastifyInstance): void {
     const orgId = request.orgId!;
     const auth = request.auth!;
     const { candidateId, jobProfileId, templateCode } = parsed.data;
+    const idempotencyKey = request.headers["idempotency-key"];
 
-    const result = await withOrgTx(orgId, async (client) => {
-      const version = await client.query<{ id: string }>(
-        `SELECT v.id FROM assessment_template_versions v
-           JOIN assessment_templates t ON t.id = v.template_id
-          WHERE t.code = $1 AND t.status = 'published'
-          ORDER BY v.created_at DESC LIMIT 1`,
-        [templateCode],
-      );
-      if (!version.rows[0]) return { error: "TEMPLATE_NOT_FOUND" as const };
-      const found = await client.query<{ candidate_full_name?: string; job_title?: string }>(
-        `SELECT c.full_name AS candidate_full_name, NULL::text AS job_title FROM candidates c WHERE c.id = $1
-         UNION ALL
-         SELECT NULL::text, j.title FROM job_profiles j WHERE j.id = $2`,
-        [candidateId, jobProfileId],
-      );
-      if (found.rowCount !== 2) return { error: "NOT_FOUND" as const };
-      const candidateFullName = found.rows.find((r) => r.candidate_full_name)?.candidate_full_name ?? "Candidate";
-      const jobTitle = found.rows.find((r) => r.job_title)?.job_title ?? "Role";
-      const orgRow = await client.query<{ name: string }>("SELECT name FROM organisations WHERE id = $1", [orgId]);
+    let outcome: { status: number; body: unknown };
+    try {
+      outcome = await withOrgTx(orgId, async (client) => {
+        const doWork = async (): Promise<{ status: number; body: unknown }> => {
+          const version = await client.query<{ id: string }>(
+            `SELECT v.id FROM assessment_template_versions v
+               JOIN assessment_templates t ON t.id = v.template_id
+              WHERE t.code = $1 AND t.status = 'published'
+              ORDER BY v.created_at DESC LIMIT 1`,
+            [templateCode],
+          );
+          if (!version.rows[0]) {
+            return { status: 404, body: { error: "TEMPLATE_NOT_FOUND" as const } };
+          }
+          const found = await client.query<{ candidate_full_name?: string; job_title?: string }>(
+            `SELECT c.full_name AS candidate_full_name, NULL::text AS job_title FROM candidates c WHERE c.id = $1
+             UNION ALL
+             SELECT NULL::text, j.title FROM job_profiles j WHERE j.id = $2`,
+            [candidateId, jobProfileId],
+          );
+          if (found.rowCount !== 2) {
+            return { status: 404, body: { error: "NOT_FOUND" as const } };
+          }
+          const candidateFullName = found.rows.find((r) => r.candidate_full_name)?.candidate_full_name ?? "Candidate";
+          const jobTitle = found.rows.find((r) => r.job_title)?.job_title ?? "Role";
+          const orgRow = await client.query<{ name: string }>("SELECT name FROM organisations WHERE id = $1", [orgId]);
 
-      const token = generateToken();
-      // Domain machine: draft --send--> sent (issued immediately on creation).
-      const status = invitationMachine.next(invitationMachine.initial, "send");
-      const invitation = await client.query<{ id: string; expires_at: Date }>(
-        `INSERT INTO invitations
-           (organisation_id, candidate_id, job_profile_id, template_version_id, status, token_hash, expires_at, sent_at)
-         VALUES ($1, $2, $3, $4, $5, $6, now() + ($7 || ' days')::interval, now())
-         RETURNING id, expires_at`,
-        [orgId, candidateId, jobProfileId, version.rows[0].id, status, hashToken(token), String(INVITATION_TTL_DAYS)],
-      );
-      const invitationId = invitation.rows[0]!.id;
-      await client.query(
-        `INSERT INTO invitation_lookup (token_hash, invitation_id, organisation_id, expires_at)
-         VALUES ($1, $2, $3, $4)`,
-        [hashToken(token), invitationId, orgId, invitation.rows[0]!.expires_at],
-      );
-      await client.query("UPDATE candidates SET status = 'invited', updated_at = now() WHERE id = $1 AND status = 'created'", [candidateId]);
-      const notice = invitationIssuedTemplate({
-        candidateName: candidateFullName,
-        jobTitle,
-        orgName: orgRow.rows[0]?.name ?? "Organisation",
-      });
-      await enqueueOutboundMessage(client, {
-        organisationId: orgId,
-        messageType: "invitation_issued",
-        toAddress: auth.email,
-        subject: notice.subject,
-        body: notice.body,
-      });
-      await appendAudit(client, {
-        organisationId: orgId,
-        actorUserId: auth.userId,
-        action: "hiring.invitation_sent",
-        entityType: "invitation",
-        entityId: invitationId,
-        metadata: { templateCode },
-      });
-      return { invitationId, token, expiresAt: invitation.rows[0]!.expires_at };
-    });
+          const token = generateToken();
+          // Domain machine: draft --send--> sent (issued immediately on creation).
+          const status = invitationMachine.next(invitationMachine.initial, "send");
+          const invitation = await client.query<{ id: string; expires_at: Date }>(
+            `INSERT INTO invitations
+               (organisation_id, candidate_id, job_profile_id, template_version_id, status, token_hash, expires_at, sent_at)
+             VALUES ($1, $2, $3, $4, $5, $6, now() + ($7 || ' days')::interval, now())
+             RETURNING id, expires_at`,
+            [orgId, candidateId, jobProfileId, version.rows[0].id, status, hashToken(token), String(INVITATION_TTL_DAYS)],
+          );
+          const invitationId = invitation.rows[0]!.id;
+          await client.query(
+            `INSERT INTO invitation_lookup (token_hash, invitation_id, organisation_id, expires_at)
+             VALUES ($1, $2, $3, $4)`,
+            [hashToken(token), invitationId, orgId, invitation.rows[0]!.expires_at],
+          );
+          await client.query("UPDATE candidates SET status = 'invited', updated_at = now() WHERE id = $1 AND status = 'created'", [candidateId]);
+          const notice = invitationIssuedTemplate({
+            candidateName: candidateFullName,
+            jobTitle,
+            orgName: orgRow.rows[0]?.name ?? "Organisation",
+          });
+          await enqueueOutboundMessage(client, {
+            organisationId: orgId,
+            messageType: "invitation_issued",
+            toAddress: auth.email,
+            subject: notice.subject,
+            body: notice.body,
+          });
+          await appendAudit(client, {
+            organisationId: orgId,
+            actorUserId: auth.userId,
+            action: "hiring.invitation_sent",
+            entityType: "invitation",
+            entityId: invitationId,
+            metadata: { templateCode },
+          });
+          return {
+            status: 201,
+            body: {
+              invitationId,
+              candidateAccessToken: token,
+              expiresAt: invitation.rows[0]!.expires_at,
+              note: "Deliver the access token to the candidate out of band. It is shown only once.",
+            },
+          };
+        };
 
-    if ("error" in result) {
-      return sendError(reply, 404, result.error, "Candidate, job profile, or published template not found.", request.id);
+        if (typeof idempotencyKey === "string" && idempotencyKey.length > 0) {
+          const idem = await runIdempotent(
+            client,
+            { scope: "org:invitation-create", actorKey: orgId, idempotencyKey, requestBody: parsed.data },
+            doWork,
+          );
+          return { status: idem.status, body: idem.body };
+        }
+        return doWork();
+      });
+    } catch (error) {
+      if (error instanceof IdempotencyConflictError) {
+        return sendError(reply, 422, "IDEMPOTENCY_KEY_CONFLICT", error.message, request.id);
+      }
+      throw error;
     }
-    return reply.status(201).send({
-      invitationId: result.invitationId,
-      candidateAccessToken: result.token,
-      expiresAt: result.expiresAt,
-      note: "Deliver the access token to the candidate out of band. It is shown only once.",
-    });
+
+    const body = outcome.body as { error?: string };
+    if (body.error) {
+      return sendError(reply, outcome.status, body.error, "Candidate, job profile, or published template not found.", request.id);
+    }
+    return reply.status(outcome.status).send(outcome.body);
   });
+
 
   /** Reissue an expired or lost invitation with a fresh single-use token (BR-08). */
   app.post(

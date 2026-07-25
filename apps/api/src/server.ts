@@ -3,9 +3,16 @@ import { loadConfig } from "./config.js";
 import { closePool } from "./db/pool.js";
 
 const config = loadConfig();
-const app = buildApp(
-  config.DATABASE_URL !== undefined ? { databaseUrl: config.DATABASE_URL } : {},
-);
+const m = config.RATE_LIMIT_TEST_MULTIPLIER;
+const app = buildApp({
+  ...(config.DATABASE_URL !== undefined ? { databaseUrl: config.DATABASE_URL } : {}),
+  rateLimit: {
+    generalCapacity: Math.round(1000 * m),
+    generalRefillPerSecond: (1000 / 60) * m,
+    strictCapacity: Math.round(500 * m),
+    strictRefillPerSecond: (500 / 60) * m,
+  },
+});
 
 const shutdown = async (signal: string): Promise<void> => {
   app.log.info({ signal }, "shutting down");

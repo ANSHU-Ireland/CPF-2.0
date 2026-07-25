@@ -11,6 +11,7 @@ import {
 import Fastify, { type FastifyError, type FastifyInstance } from "fastify";
 import { randomUUID } from "node:crypto";
 import { createPool } from "./db/pool.js";
+import { InMemoryRateLimitStore } from "./modules/rate-limit.js";
 import { registerAuthRoutes } from "./modules/auth/routes.js";
 import { registerCandidatePortalRoutes } from "./modules/candidate/portal.js";
 import { registerAcknowledgementRoutes } from "./modules/org/acknowledgements.js";
@@ -27,6 +28,18 @@ const API_VERSION = "0.1.0";
 export interface BuildAppOptions {
   /** Enables full platform mode (identity, tenancy, hiring, reviews, data rights). */
   databaseUrl?: string;
+  /**
+   * Token-bucket sizing for the in-memory rate limiter. Defaults are generous
+   * (sized for real traffic, not for tests) — integration tests that want to
+   * exercise 429 behaviour build their own app instance with small values
+   * here rather than tripping the shared test app's buckets by accident.
+   */
+  rateLimit?: {
+    generalCapacity: number;
+    generalRefillPerSecond: number;
+    strictCapacity: number;
+    strictRefillPerSecond: number;
+  };
 }
 
 /**
@@ -54,6 +67,40 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // CSV import bodies (candidate import) arrive as text/csv, not JSON.
   app.addContentTypeParser("text/csv", { parseAs: "string" }, (_req, body, done) => {
     done(null, body);
+  });
+
+  // Rate limiting (CPF-43): token bucket per bearer session token when authed,
+  // per-IP otherwise. /v1/auth/* and /v1/candidate/* use a stricter bucket
+  // since they're reachable without any prior authentication. Single-node,
+  // in-memory only for this phase (RateLimitStore is the seam for Redis later).
+  const rateLimitConfig = options.rateLimit ?? {
+    generalCapacity: 1000,
+    generalRefillPerSecond: 1000 / 60,
+    strictCapacity: 500,
+    strictRefillPerSecond: 500 / 60,
+  };
+  const rateLimitStore = new InMemoryRateLimitStore();
+  app.addHook("onRequest", async (request, reply) => {
+    if (request.url === "/health") return;
+    const strict = request.url.startsWith("/v1/auth/") || request.url.startsWith("/v1/candidate/");
+    const authHeader = request.headers.authorization;
+    const bearer = authHeader?.startsWith("Bearer ") ? authHeader.slice("Bearer ".length) : null;
+    const bucketScope = strict ? "strict" : "general";
+    const bucketKey = `${bucketScope}:${bearer ?? `ip:${request.ip}`}`;
+    const capacity = strict ? rateLimitConfig.strictCapacity : rateLimitConfig.generalCapacity;
+    const refillPerSecond = strict ? rateLimitConfig.strictRefillPerSecond : rateLimitConfig.generalRefillPerSecond;
+    const outcome = rateLimitStore.consume(bucketKey, capacity, refillPerSecond);
+    if (!outcome.allowed) {
+      reply.header("retry-after", String(outcome.retryAfterSeconds));
+      return reply.status(429).send({
+        error: {
+          code: "RATE_LIMITED",
+          message: "Too many requests. Please slow down and try again shortly.",
+          requestId: request.id,
+          retryable: true,
+        },
+      });
+    }
   });
 
   // Baseline security headers on every response.

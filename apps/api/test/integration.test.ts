@@ -147,7 +147,7 @@ run("CPF platform end-to-end", () => {
          criterion_scores, reviews, evidence_events, disclosure_records,
          assessment_sessions, invitations, candidates, job_profiles,
          retention_policies, org_memberships, employer_acknowledgements,
-         reviewer_calibration_records, outbound_messages CASCADE`,
+         reviewer_calibration_records, outbound_messages, idempotency_keys CASCADE`,
     );
 
     const orgAId = await createOrg("it-employer-a");
@@ -1296,6 +1296,74 @@ run("CPF platform end-to-end", () => {
     );
     expect(auditRow.rowCount).toBe(1);
     expect(auditRow.rows[0].metadata.created).toBe(3);
+  }, 60_000);
+
+  it("rate limits bursts with 429 + retry-after on a small dedicated bucket (CPF-43)", async () => {
+    const smallApp = buildApp({
+      databaseUrl: DATABASE_URL!,
+      rateLimit: { generalCapacity: 3, generalRefillPerSecond: 0.001, strictCapacity: 3, strictRefillPerSecond: 0.001 },
+    });
+    try {
+      const results = [];
+      for (let i = 0; i < 5; i += 1) {
+        results.push(await smallApp.inject({ method: "GET", url: "/v1/framework/templates" }));
+      }
+      const ok = results.filter((r) => r.statusCode === 200);
+      const limited = results.filter((r) => r.statusCode === 429);
+      expect(ok.length).toBe(3);
+      expect(limited.length).toBe(2);
+      expect(limited[0]!.headers["retry-after"]).toBeDefined();
+      expect(limited[0]!.json().error.code).toBe("RATE_LIMITED");
+    } finally {
+      await smallApp.close();
+    }
+  }, 30_000);
+
+  it("Idempotency-Key replays the stored response and rejects a body mismatch (CPF-43)", async () => {
+    const idemOrgId = await createOrg("it-idem-org");
+    const idemAdmin = await createActiveUser("admin-idem@it.cpf.test", PW);
+    await addMembership(idemOrgId, idemAdmin, "org_admin");
+    const idemToken = await login("admin-idem@it.cpf.test", PW);
+
+    const key = "idem-key-candidate-import-1";
+    const csv = "name,email\nIdempotent Ada,idem-ada@candidate.test\n";
+
+    const first = await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${idemOrgId}/candidates/import`,
+      headers: { ...authed(idemToken), "content-type": "text/csv", "idempotency-key": key },
+      payload: csv,
+    });
+    expect(first.statusCode, first.body).toBe(201);
+    expect(first.json().created).toBe(1);
+
+    // Replay with the identical body → identical stored response, no new row.
+    const replay = await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${idemOrgId}/candidates/import`,
+      headers: { ...authed(idemToken), "content-type": "text/csv", "idempotency-key": key },
+      payload: csv,
+    });
+    expect(replay.statusCode).toBe(201);
+    expect(replay.json()).toEqual(first.json());
+
+    const count = await admin.query("SELECT count(*)::int AS n FROM candidates WHERE organisation_id = $1 AND email = 'idem-ada@candidate.test'", [
+      idemOrgId,
+    ]);
+    expect(count.rows[0].n).toBe(1);
+
+    // Same key, different body → 422 conflict, no mutation.
+    const conflict = await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${idemOrgId}/candidates/import`,
+      headers: { ...authed(idemToken), "content-type": "text/csv", "idempotency-key": key },
+      payload: "name,email\nSomeone Else,someone-else@candidate.test\n",
+    });
+    expect(conflict.statusCode).toBe(422);
+    expect(conflict.json().error.code).toBe("IDEMPOTENCY_KEY_CONFLICT");
+
+    const stillOne = await admin.query("SELECT count(*)::int AS n FROM candidates WHERE organisation_id = $1", [idemOrgId]);
+    expect(stillOne.rows[0].n).toBe(1);
   }, 60_000);
 
   it("activates invited users via single-use tokens and enforces password policy", async () => {

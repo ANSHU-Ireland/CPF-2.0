@@ -1,6 +1,7 @@
 # Completion Report — CPF Enterprise Ecosystem
 
-Reporting date: 2026-07-25 (third build cycle — Phase B web portals) ·
+Reporting date: 2026-07-25 (fourth build cycle — Phase C hiring-workflow depth:
+adjudication, retention, notifications, candidate import, rate limiting) ·
 Reporting standard: directive §21 (no premature completion claims). This is
 the authoritative status document.
 
@@ -17,7 +18,7 @@ remaining)** — employer portal, reviewer workspace, candidate portal, and
 platform administration. No compliance certification is claimed. No real
 candidate data has ever entered this system.
 
-## Fully implemented and tested — 134 automated tests green, 1 intentionally skipped (verified locally 2026-07-25)
+## Fully implemented and tested — 155 automated tests green, 1 intentionally skipped (verified locally 2026-07-25)
 
 | Layer | Evidence |
 |---|---|
@@ -26,8 +27,8 @@ candidate data has ever entered this system.
 | **Lifecycle state machines** (disclosure gate, report gate, pause/resume, reissue, DSR, oversight guard) | 14 machine tests |
 | **Identity primitives** (scrypt w/ OWASP params, opaque hashed tokens, RFC 6238 TOTP against RFC test vectors, base32) | 17 identity tests |
 | **Framework API** (catalogue, stateless evaluation, error contract, security headers) | 8 API tests |
-| **Full platform integration on PostgreSQL 17** — everything below, incl. 3 new read-model endpoints (org sessions pipeline, org users directory, review detail) | **15 integration tests** |
-| **Web application** — all 13 pages real, no stubs remaining: sign-in, platform employer directory, candidate CRM, assessment template library, job profiles, sessions pipeline, team directory, data rights + legal holds, review queue, reviewer workspace (rubric scoring/preview/finalise), evidence profile (bands/probes, no verdict), candidate entry, and the full public candidate portal (disclosure gate, evidence workspace, real integrity signals, DSR self-service) | 42 component tests (incl. 11 vitest-axe accessibility smoke tests across the app's core screens) + a live browser smoke test |
+| **Full platform integration on PostgreSQL 17** — everything below, plus double-scoring & adjudication (CPF-38), a scheduled retention sweep with legal-hold suppression (CPF-26), an outbound-mail notification queue with retry/backoff/dead-letter (CPF-37), candidate CSV bulk import with a partition report (CPF-35), and token-bucket rate limiting + Idempotency-Key replay safety (CPF-43) | **25 integration tests, 1 intentionally skipped** |
+| **Web application** — all 13 pages real, no stubs remaining: sign-in, platform employer directory, candidate CRM (now with CSV import), assessment template library, job profiles, sessions pipeline (now with second-reviewer assignment), team directory (now with calibration status), data rights + legal holds, review queue, reviewer workspace (actor-aware double-scoring/adjudication), evidence profile (bands/probes, no verdict), candidate entry, and the full public candidate portal (disclosure gate, evidence workspace, real integrity signals, DSR self-service) | 48 component tests (incl. 11 vitest-axe accessibility smoke tests across the app's core screens) + a live browser smoke test |
 
 Integration-verified end-to-end journeys (real HTTP → real database, restricted
 non-superuser role):
@@ -67,6 +68,39 @@ typed stub, not a dead link → an unknown route renders a 404 with a working
 recovery link → sign-out clears the session and returns to `/login`. Every
 request in the API access log returned 200; no console/network errors.
 
+## Fourth build cycle additions (Steps 20–24, disclosed per §21)
+
+1. **Double-scoring & adjudication (CPF-38):** a second reviewer can be
+   assigned per session (calibration-gated, distinct from reviewer 1); score
+   writes are now actor-scoped by field (reviewer1/reviewer2/admin-only
+   adjudication) — this also caught and fixed a latent bug where the prior
+   blanket score UPSERT would have silently overwritten the first reviewer's
+   score once a second reviewer started saving.
+2. **Retention sweep (CPF-26):** `npm run retention:dry-run`/`retention:execute`
+   deletes aged evidence events and anonymises candidates once every session
+   is terminal and past its configured retention window, suppressed entirely
+   for any candidate under an active legal hold, with a per-org/per-category
+   deletion cap as a guard against a misconfigured policy.
+3. **Notifications (CPF-37):** an outbound-message queue with exponential
+   backoff and dead-lettering after 5 attempts, delivered via a console
+   adapter by default or SMTP when configured — invitation and
+   activation-token issuance now enqueue a real notice rather than only
+   returning the token to the caller for manual delivery. Candidate-facing
+   e-mail delivery remains out of scope pending a consent/enablement setting.
+4. **Candidate CSV import (CPF-35):** bulk candidate creation from a
+   `name,email` CSV (≤1MB, ≤2000 rows) with per-row validation, in-file and
+   existing-record dedupe, a formula-injection guard on stored names, and a
+   partition report (created/duplicate/invalid) surfaced in the web UI with a
+   downloadable rejects file.
+5. **Rate limiting + Idempotency-Key (CPF-43):** an in-memory token-bucket
+   limiter (stricter buckets on `/v1/auth/*` and `/v1/candidate/*`, honestly
+   documented as single-node only — `RateLimitStore` is the seam for a future
+   Redis-backed implementation) returns 429 + `retry-after`; invitation
+   creation, candidate import, and candidate-raised data-rights requests all
+   support an `Idempotency-Key` header that replays the original stored
+   response on a matching retry and rejects a same-key-different-body replay
+   with 422, rather than double-creating records on client retry.
+
 ## Defects found and fixed by our own tests this cycle (disclosed per §21)
 
 1. Superuser DB connection silently bypassed RLS → dedicated `cpf_app`/`cpf_api`
@@ -101,12 +135,8 @@ environment).
 
 ## Designed but not implemented (honest boundary)
 
-- Notifications/e-mail delivery (invitation + activation tokens are returned
-  to the operator for out-of-band delivery), file uploads, candidate imports,
-  retention sweep scheduler (erasure service exists and is tested; the cron
-  wrapper is CPF-26), rate-limiting middleware (CPF-43), OpenAPI generation
-  (CPF-44), reviewer calibration gating (CPF-33), AI Collaboration Profile
-  7-dimension rendering (CPF-30), evidence-band rule validation (CPF-31).
+- OpenAPI generation (CPF-44), SBOM + secret scanning + SAST in CI (CPF-45).
+- File uploads beyond the CSV import path (e.g. resume/document attachments).
 - AI features: **none exist**; gateway is a governed design (ADR-0005). The
   candidate portal explicitly states no AI assistant is configured, rather
   than simulating one.

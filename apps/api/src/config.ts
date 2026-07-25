@@ -27,6 +27,13 @@ const ConfigSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASSWORD: z.string().optional(),
   SMTP_FROM: z.string().default("no-reply@cpf.invalid"),
+  /**
+   * Multiplies rate-limit bucket capacity (and refill rate) so integration
+   * tests can run bursts of real requests without tripping 429s by accident.
+   * Deliberately a multiplier, not a bypass — rate limiting stays exercised
+   * end-to-end even in test mode, just against a wider window.
+   */
+  RATE_LIMIT_TEST_MULTIPLIER: z.coerce.number().positive().default(1),
 });
 
 export type AppConfig = z.infer<typeof ConfigSchema>;

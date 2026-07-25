@@ -12,6 +12,7 @@ import {
 import { appendAudit } from "../../db/audit.js";
 import { getPool, withOrgTx, type Queryable } from "../../db/pool.js";
 import { sendError } from "../auth/guards.js";
+import { runIdempotent, IdempotencyConflictError } from "../idempotency.js";
 import {
   CANDIDATE_SUBMITTABLE_CATEGORIES,
   DSR_DUE_DAYS,
@@ -361,35 +362,61 @@ export function registerCandidatePortalRoutes(app: FastifyInstance): void {
         if (!parsed.success) {
           return sendError(reply, 400, "REQUEST_VALIDATION_FAILED", "Invalid data-rights request.", request.id);
         }
-        const created = await withOrgTx(ctx.organisationId, async (client) => {
-          const candidate = await client.query<{ candidate_id: string }>(
-            "SELECT candidate_id FROM invitations WHERE id = $1",
-            [ctx.invitationId],
-          );
-          const result = await client.query<{ id: string; due_at: Date }>(
-            `INSERT INTO data_rights_requests (organisation_id, candidate_id, request_type, due_at, resolution_note)
-             VALUES ($1, $2, $3, now() + ($4 || ' days')::interval, $5)
-             RETURNING id, due_at`,
-            [
-              ctx.organisationId,
-              candidate.rows[0]!.candidate_id,
-              parsed.data.requestType,
-              String(DSR_DUE_DAYS),
-              parsed.data.detail ?? null,
-            ],
-          );
-          await appendAudit(client, {
-            organisationId: ctx.organisationId,
-            action: "data_rights.request_received",
-            entityType: "data_rights_request",
-            entityId: result.rows[0]!.id,
-            metadata: { requestType: parsed.data.requestType },
+        const idempotencyKey = request.headers["idempotency-key"];
+        let outcome: { requestId: string; dueAt: Date };
+        try {
+          outcome = await withOrgTx(ctx.organisationId, async (client) => {
+            const doWork = async (): Promise<{ status: number; body: { requestId: string; dueAt: Date } }> => {
+              const candidate = await client.query<{ candidate_id: string }>(
+                "SELECT candidate_id FROM invitations WHERE id = $1",
+                [ctx.invitationId],
+              );
+              const result = await client.query<{ id: string; due_at: Date }>(
+                `INSERT INTO data_rights_requests (organisation_id, candidate_id, request_type, due_at, resolution_note)
+                 VALUES ($1, $2, $3, now() + ($4 || ' days')::interval, $5)
+                 RETURNING id, due_at`,
+                [
+                  ctx.organisationId,
+                  candidate.rows[0]!.candidate_id,
+                  parsed.data.requestType,
+                  String(DSR_DUE_DAYS),
+                  parsed.data.detail ?? null,
+                ],
+              );
+              await appendAudit(client, {
+                organisationId: ctx.organisationId,
+                action: "data_rights.request_received",
+                entityType: "data_rights_request",
+                entityId: result.rows[0]!.id,
+                metadata: { requestType: parsed.data.requestType },
+              });
+              return { status: 201, body: { requestId: result.rows[0]!.id, dueAt: result.rows[0]!.due_at } };
+            };
+
+            if (typeof idempotencyKey === "string" && idempotencyKey.length > 0) {
+              const idem = await runIdempotent(
+                client,
+                {
+                  scope: "candidate:data-rights-create",
+                  actorKey: ctx.invitationId,
+                  idempotencyKey,
+                  requestBody: parsed.data,
+                },
+                doWork,
+              );
+              return idem.body;
+            }
+            return (await doWork()).body;
           });
-          return { requestId: result.rows[0]!.id, dueAt: result.rows[0]!.due_at };
-        });
+        } catch (error) {
+          if (error instanceof IdempotencyConflictError) {
+            return sendError(reply, 422, "IDEMPOTENCY_KEY_CONFLICT", error.message, request.id);
+          }
+          throw error;
+        }
         return reply.status(201).send({
-          requestId: created.requestId,
-          dueAt: created.dueAt,
+          requestId: outcome.requestId,
+          dueAt: outcome.dueAt,
           status: "received",
         });
       }),
