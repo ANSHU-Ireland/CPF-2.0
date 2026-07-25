@@ -1453,6 +1453,118 @@ run("CPF platform end-to-end", () => {
     expect(me.statusCode).toBe(401);
   }, 60_000);
 
+  it("gates org data export behind step-up auth, and revokes sessions when a role is removed (CPF-27)", async () => {
+    const exporterId = await createActiveUser("exporter@it.cpf.test", PW);
+    await addMembership(orgA.orgId, exporterId, "org_admin");
+    const exporterToken = await login("exporter@it.cpf.test", PW);
+
+    // A freshly-logged-in session is already "stepped up" — export succeeds immediately.
+    const freshExport = await app.inject({
+      method: "GET",
+      url: `/v1/orgs/${orgA.orgId}/export`,
+      headers: authed(exporterToken),
+    });
+    expect(freshExport.statusCode, freshExport.body).toBe(200);
+    expect(Array.isArray(freshExport.json().candidates)).toBe(true);
+
+    // Age the step-up marker past the freshness window (simulates an idle session).
+    await admin.query("UPDATE auth_sessions SET stepped_up_at = now() - interval '10 minutes' WHERE user_id = $1", [
+      exporterId,
+    ]);
+
+    const staleExport = await app.inject({
+      method: "GET",
+      url: `/v1/orgs/${orgA.orgId}/export`,
+      headers: authed(exporterToken),
+    });
+    expect(staleExport.statusCode).toBe(401);
+    expect(staleExport.json().error.code).toBe("STEP_UP_REQUIRED");
+
+    const badStepUp = await app.inject({
+      method: "POST",
+      url: "/v1/auth/step-up",
+      headers: authed(exporterToken),
+      payload: { password: "definitely-the-wrong-password" },
+    });
+    expect(badStepUp.statusCode).toBe(401);
+    expect(badStepUp.json().error.code).toBe("STEP_UP_FAILED");
+
+    const stepUp = await app.inject({
+      method: "POST",
+      url: "/v1/auth/step-up",
+      headers: authed(exporterToken),
+      payload: { password: PW },
+    });
+    expect(stepUp.statusCode, stepUp.body).toBe(200);
+
+    const reExport = await app.inject({
+      method: "GET",
+      url: `/v1/orgs/${orgA.orgId}/export`,
+      headers: authed(exporterToken),
+    });
+    expect(reExport.statusCode, reExport.body).toBe(200);
+
+    // --- Role removal revokes the affected user's sessions immediately ---
+    const targetId = await createActiveUser("role-removal@it.cpf.test", PW);
+    await addMembership(orgA.orgId, targetId, "hiring_manager");
+    const targetToken = await login("role-removal@it.cpf.test", PW);
+    const meBefore = await app.inject({ method: "GET", url: "/v1/auth/me", headers: authed(targetToken) });
+    expect(meBefore.statusCode).toBe(200);
+
+    const removeRole = await app.inject({
+      method: "DELETE",
+      url: `/v1/orgs/${orgA.orgId}/users/${targetId}/roles/hiring_manager`,
+      headers: authed(orgA.token),
+    });
+    expect(removeRole.statusCode, removeRole.body).toBe(200);
+    expect(removeRole.json().sessionsRevoked).toBeGreaterThanOrEqual(1);
+
+    const meAfter = await app.inject({ method: "GET", url: "/v1/auth/me", headers: authed(targetToken) });
+    expect(meAfter.statusCode).toBe(401);
+
+    // Removing a role a user doesn't hold is a 404, not a silent success.
+    const removeAgain = await app.inject({
+      method: "DELETE",
+      url: `/v1/orgs/${orgA.orgId}/users/${targetId}/roles/hiring_manager`,
+      headers: authed(orgA.token),
+    });
+    expect(removeAgain.statusCode).toBe(404);
+
+    // An organisation can never remove its last org_admin.
+    const soleAdminOrgId = await createOrg("it-employer-sole-admin");
+    const soleAdminId = await createActiveUser("sole-admin@it.cpf.test", PW);
+    await addMembership(soleAdminOrgId, soleAdminId, "org_admin");
+    const soleAdminToken = await login("sole-admin@it.cpf.test", PW);
+    const lastAdminAttempt = await app.inject({
+      method: "DELETE",
+      url: `/v1/orgs/${soleAdminOrgId}/users/${soleAdminId}/roles/org_admin`,
+      headers: authed(soleAdminToken),
+    });
+    expect(lastAdminAttempt.statusCode).toBe(409);
+    expect(lastAdminAttempt.json().error.code).toBe("LAST_ORG_ADMIN");
+  }, 60_000);
+
+  it("slides session expiry on activity but never past the absolute cap (CPF-27)", async () => {
+    await createActiveUser("sliding@it.cpf.test", PW);
+    const token = await login("sliding@it.cpf.test", PW);
+
+    // Simulate a session nearing the end of its 24h absolute lifetime.
+    await admin.query(
+      `UPDATE auth_sessions SET absolute_expires_at = now() + interval '2 minutes'
+        WHERE user_id = (SELECT id FROM users WHERE email = 'sliding@it.cpf.test')`,
+    );
+
+    const res = await app.inject({ method: "GET", url: "/v1/auth/me", headers: authed(token) });
+    expect(res.statusCode).toBe(200);
+
+    const row = await admin.query<{ expires_at: Date; absolute_expires_at: Date }>(
+      `SELECT expires_at, absolute_expires_at FROM auth_sessions
+        WHERE user_id = (SELECT id FROM users WHERE email = 'sliding@it.cpf.test')`,
+    );
+    // Sliding renewal is clamped to the absolute cap, not extended to a fresh 12h.
+    expect(row.rows[0]!.expires_at.getTime()).toBe(row.rows[0]!.absolute_expires_at.getTime());
+  });
+
   it("serves a valid OpenAPI spec covering every registered route (CPF-44)", async () => {
     const res = await app.inject({ method: "GET", url: "/v1/openapi.json" });
     expect(res.statusCode).toBe(200);

@@ -32,3 +32,11 @@ export const ACTIVATION_TTL_HOURS = 72;
 export const DSR_DUE_DAYS = 30;
 export const CANDIDATE_IMPORT_MAX_BYTES = 1024 * 1024;
 export const CANDIDATE_IMPORT_MAX_ROWS = 2000;
+
+/** Sliding session renewal: each activity extends expiry, capped by the absolute limit below. */
+export const SESSION_SLIDING_TTL_HOURS = 12;
+/** Hard cap on session lifetime regardless of activity (CPF-27). */
+export const SESSION_ABSOLUTE_TTL_HOURS = 24;
+/** Sensitive actions (e.g. org data export) require re-authentication within this window. */
+export const STEP_UP_FRESHNESS_MINUTES = 5;
+

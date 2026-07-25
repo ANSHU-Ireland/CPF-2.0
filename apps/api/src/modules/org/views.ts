@@ -1,9 +1,11 @@
 import type { FastifyInstance } from "fastify";
+import { appendAudit } from "../../db/audit.js";
 import { withOrgTx } from "../../db/pool.js";
-import { requireOrgRole, sendError } from "../auth/guards.js";
+import { requireFreshAuth, requireOrgRole, sendError } from "../auth/guards.js";
 
 const orgReadRoles = requireOrgRole("org_admin", "hiring_manager");
 const adminRole = requireOrgRole("org_admin");
+
 
 /**
  * Read-model endpoints backing the web application work queues:
@@ -95,6 +97,53 @@ export function registerOrgViewsRoutes(app: FastifyInstance): void {
           [reviewId],
         );
         return { ...row, scores: scores.rows };
+      });
+    },
+  );
+
+  /**
+   * Organisation data export (CPF-27): a bulk JSON export of the org's
+   * candidates, sessions, and reviews for admin-initiated backup/reporting.
+   * Step-up gated — the bearer session must have re-authenticated within the
+   * last few minutes (see requireFreshAuth), else 401 STEP_UP_REQUIRED.
+   */
+  app.get(
+    "/v1/orgs/:orgId/export",
+    { preHandler: [adminRole, requireFreshAuth] },
+    async (request) => {
+      const orgId = request.orgId!;
+      const auth = request.auth!;
+      return withOrgTx(orgId, async (client) => {
+        const candidates = await client.query(
+          `SELECT id, full_name, email, status, created_at FROM candidates ORDER BY created_at DESC LIMIT 5000`,
+        );
+        const sessions = await client.query(
+          `SELECT s.id, s.status, s.started_at, s.submitted_at, i.candidate_id
+             FROM assessment_sessions s
+             JOIN invitations i ON i.id = s.invitation_id
+            ORDER BY s.created_at DESC LIMIT 5000`,
+        );
+        const reviews = await client.query(
+          `SELECT id, session_id, status, finalised_at FROM reviews ORDER BY created_at DESC LIMIT 5000`,
+        );
+        await appendAudit(client, {
+          organisationId: orgId,
+          actorUserId: auth.userId,
+          action: "org.data_exported",
+          entityType: "organisation",
+          entityId: orgId,
+          metadata: {
+            candidateCount: candidates.rowCount ?? 0,
+            sessionCount: sessions.rowCount ?? 0,
+            reviewCount: reviews.rowCount ?? 0,
+          },
+        });
+        return {
+          exportedAt: new Date().toISOString(),
+          candidates: candidates.rows,
+          sessions: sessions.rows,
+          reviews: reviews.rows,
+        };
       });
     },
   );

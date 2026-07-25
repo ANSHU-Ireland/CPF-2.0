@@ -11,8 +11,8 @@ import {
 import { appendAudit } from "../../db/audit.js";
 import { withTx } from "../../db/pool.js";
 import { requireAuth, sendError } from "./guards.js";
+import { SESSION_ABSOLUTE_TTL_HOURS, SESSION_SLIDING_TTL_HOURS } from "../constants.js";
 
-const SESSION_TTL_HOURS = 12;
 const LOCKOUT_WINDOW_MINUTES = 15;
 const LOCKOUT_THRESHOLD = 5;
 
@@ -23,6 +23,11 @@ const LoginSchema = z.object({
 });
 
 const TotpVerifySchema = z.object({ totpCode: z.string().regex(/^\d{6}$/u) });
+const StepUpSchema = z.object({
+  password: z.string().min(1).max(256),
+  totpCode: z.string().regex(/^\d{6}$/u).optional(),
+});
+
 
 export function registerAuthRoutes(app: FastifyInstance): void {
   app.post("/v1/auth/login", async (request, reply) => {
@@ -98,11 +103,12 @@ export function registerAuthRoutes(app: FastifyInstance): void {
       }
 
       const token = generateToken();
-      const expiresAt = new Date(Date.now() + SESSION_TTL_HOURS * 3_600_000);
+      const expiresAt = new Date(Date.now() + SESSION_SLIDING_TTL_HOURS * 3_600_000);
+      const absoluteExpiresAt = new Date(Date.now() + SESSION_ABSOLUTE_TTL_HOURS * 3_600_000);
       await client.query(
-        `INSERT INTO auth_sessions (user_id, token_hash, expires_at, user_agent)
-         VALUES ($1, $2, $3, $4)`,
-        [user.id, hashToken(token), expiresAt, request.headers["user-agent"] ?? null],
+        `INSERT INTO auth_sessions (user_id, token_hash, expires_at, absolute_expires_at, stepped_up_at, user_agent)
+         VALUES ($1, $2, $3, $4, now(), $5)`,
+        [user.id, hashToken(token), expiresAt, absoluteExpiresAt, request.headers["user-agent"] ?? null],
       );
       await client.query("SELECT set_config('app.current_user_id', $1, true)", [user.id]);
       const memberships = await client.query<{ organisation_id: string; role: string }>(
@@ -184,6 +190,49 @@ export function registerAuthRoutes(app: FastifyInstance): void {
       user: { id: auth.userId, displayName: auth.displayName, email: auth.email },
       memberships: auth.memberships,
     };
+  });
+
+  /**
+   * Step-up re-authentication (CPF-27): proves the caller's identity again
+   * (password, plus TOTP if MFA-enrolled) without issuing a new session, and
+   * marks the CURRENT session as freshly authenticated. Sensitive actions
+   * (e.g. org data export) require this freshness within the last
+   * STEP_UP_FRESHNESS_MINUTES; otherwise they respond 401 STEP_UP_REQUIRED.
+   */
+  app.post("/v1/auth/step-up", { preHandler: requireAuth }, async (request, reply) => {
+    const parsed = StepUpSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return sendError(reply, 400, "REQUEST_VALIDATION_FAILED", "A password is required.", request.id);
+    }
+    const auth = request.auth!;
+    const verified = await withTx(async (client) => {
+      const rows = await client.query<{
+        password_hash: string | null;
+        mfa_enrolled: boolean;
+        totp_secret: string | null;
+      }>("SELECT password_hash, mfa_enrolled, totp_secret FROM users WHERE id = $1", [auth.userId]);
+      const user = rows.rows[0];
+      const passwordOk = user?.password_hash != null && (await verifyPassword(parsed.data.password, user.password_hash));
+      const mfaOk =
+        passwordOk &&
+        (!user.mfa_enrolled ||
+          (user.totp_secret != null &&
+            parsed.data.totpCode != null &&
+            verifyTotp(user.totp_secret, parsed.data.totpCode)));
+      if (!passwordOk || !mfaOk) return false;
+      await client.query("UPDATE auth_sessions SET stepped_up_at = now() WHERE id = $1", [auth.sessionId]);
+      await appendAudit(client, {
+        actorUserId: auth.userId,
+        action: "auth.step_up_verified",
+        entityType: "auth_session",
+        entityId: auth.sessionId,
+      });
+      return true;
+    });
+    if (!verified) {
+      return sendError(reply, 401, "STEP_UP_FAILED", "Re-authentication failed.", request.id);
+    }
+    return reply.send({ steppedUp: true });
   });
 
   // --- TOTP enrollment (two-step: provision, then confirm with a live code) ---

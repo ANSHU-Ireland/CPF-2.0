@@ -33,6 +33,13 @@ const ActivateSchema = z.object({
   password: z.string().min(1).max(256),
 });
 
+const RoleRemovalParamsSchema = z.object({
+  orgId: z.string().uuid(),
+  userId: z.string().uuid(),
+  role: z.enum(["org_admin", "hiring_manager", "reviewer", "learning_admin", "support_agent"]),
+});
+
+
 async function requirePlatformAdmin(
   request: FastifyRequest,
   reply: FastifyReply,
@@ -183,6 +190,75 @@ export function registerPlatformRoutes(app: FastifyInstance): void {
         userId: result.userId,
         activationToken: result.activationToken,
         note: "Deliver this activation token out of band. It is shown only once.",
+      });
+    },
+  );
+
+  /**
+   * Remove a role from an org member (CPF-27). To avoid the complexity and
+   * risk of surgically downgrading an already-authenticated session's
+   * capabilities mid-flight, this revokes ALL of the affected user's active
+   * sessions as a precaution — they simply sign in again with their
+   * remaining (if any) roles. Refuses to remove the organisation's last
+   * org_admin so the org can never lock itself out.
+   */
+  app.delete(
+    "/v1/orgs/:orgId/users/:userId/roles/:role",
+    { preHandler: requireOrgRole("org_admin") },
+    async (request, reply) => {
+      const parsed = RoleRemovalParamsSchema.safeParse(request.params);
+      if (!parsed.success) {
+        return sendError(reply, 400, "REQUEST_VALIDATION_FAILED", "Invalid role removal request.", request.id);
+      }
+      const { userId, role } = parsed.data;
+      const orgId = request.orgId!;
+      const auth = request.auth!;
+      const result = await withOrgTx(orgId, async (client) => {
+        if (role === "org_admin") {
+          const remaining = await client.query<{ count: string }>(
+            `SELECT count(*) AS count FROM org_memberships
+               WHERE organisation_id = $1 AND role = 'org_admin' AND user_id <> $2`,
+            [orgId, userId],
+          );
+          if (Number(remaining.rows[0]?.count ?? 0) === 0) {
+            return { outcome: "last_admin" as const };
+          }
+        }
+        const removed = await client.query(
+          "DELETE FROM org_memberships WHERE organisation_id = $1 AND user_id = $2 AND role = $3",
+          [orgId, userId, role],
+        );
+        if ((removed.rowCount ?? 0) === 0) return { outcome: "not_found" as const };
+        const revoked = await client.query(
+          "UPDATE auth_sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL",
+          [userId],
+        );
+        await appendAudit(client, {
+          organisationId: orgId,
+          actorUserId: auth.userId,
+          action: "org.role_removed",
+          entityType: "user",
+          entityId: userId,
+          metadata: { role, sessionsRevoked: revoked.rowCount ?? 0 },
+        });
+        return { outcome: "removed" as const, sessionsRevoked: revoked.rowCount ?? 0 };
+      });
+      if (result.outcome === "last_admin") {
+        return sendError(
+          reply,
+          409,
+          "LAST_ORG_ADMIN",
+          "Cannot remove the organisation's last administrator.",
+          request.id,
+        );
+      }
+      if (result.outcome === "not_found") {
+        return sendError(reply, 404, "NOT_FOUND", "This user does not hold that role.", request.id);
+      }
+      return reply.send({
+        removed: true,
+        sessionsRevoked: result.sessionsRevoked,
+        note: "All active sessions for this user were revoked as a precaution; they will need to sign in again.",
       });
     },
   );
