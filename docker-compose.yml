@@ -25,5 +25,58 @@ services:
       - "8025:8025" # web UI
       - "1025:1025" # SMTP
 
+  # ---- "production" profile: self-contained reference/on-prem stack for ----
+  # ---- proving the container image end-to-end. NOT the recommended real ----
+  # ---- production architecture (managed Postgres + secrets manager — see ----
+  # ---- docs/operations/operations-and-runbooks.md "Deployment reference").--
+  # Activate with: docker compose --profile production up
+  # Override POSTGRES_ADMIN_PASSWORD / CPF_API_PASSWORD via a real .env
+  # before using this for anything beyond a local smoke test.
+  db:
+    image: postgres:16-alpine
+    profiles: ["production"]
+    environment:
+      POSTGRES_USER: cpf
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:-cpf_prod_change_me}
+      POSTGRES_DB: cpf
+    volumes:
+      - cpf-prod-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cpf -d cpf"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  migrate:
+    image: postgres:16-alpine
+    profiles: ["production"]
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./packages/db/migrations:/migrations:ro
+      - ./packages/db/scripts/docker-migrate.sh:/docker-migrate.sh:ro
+    environment:
+      DATABASE_ADMIN_URL: postgresql://cpf:${POSTGRES_ADMIN_PASSWORD:-cpf_prod_change_me}@db:5432/cpf
+      CPF_API_PASSWORD: ${CPF_API_PASSWORD:-cpf_prod_change_me_too}
+    entrypoint: ["sh", "/docker-migrate.sh"]
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    profiles: ["production"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: production
+      API_HOST: 0.0.0.0
+      API_PORT: 4000
+      DATABASE_URL: postgresql://cpf_api:${CPF_API_PASSWORD:-cpf_prod_change_me_too}@db:5432/cpf
+    ports:
+      - "4000:4000"
+
 volumes:
   cpf-pgdata:
+  cpf-prod-pgdata:

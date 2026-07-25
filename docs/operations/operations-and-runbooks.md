@@ -5,7 +5,7 @@
 | Env | Purpose | Data | Status |
 |---|---|---|---|
 | local | Development: docker-compose (PG 16 + Mailpit), `npm run api:dev` | Synthetic only | ✅ working |
-| ci | GitHub Actions: typecheck, tests, audit, migration+RLS validation on real PG | Synthetic | ✅ workflow committed (first run after push) |
+| ci | GitHub Actions: typecheck, tests, audit, migration+RLS validation, container build+smoke on real PG | Synthetic | ✅ verified green on GitHub Actions (Step 30) |
 | staging | Pre-production, EU region, production-like config | Synthetic + pilot rehearsal | 🔴 not provisioned |
 | production | Pilot+ | Real (post legal gates) | 🔴 not provisioned |
 
@@ -33,6 +33,54 @@ Container image (multi-stage, non-root, pinned base) → EU-region runtime
 close-out) → managed PostgreSQL with PITR backups → object storage (EU) →
 staged rollout (staging soak → canary → full) → rollback = previous image +
 additive-only migrations mean no down-migration needed for rollback.
+
+### Container image (implemented, Step 31)
+
+`apps/api/Dockerfile` — multi-stage build (build context is the repo root,
+since npm workspaces need the full monorepo layout to resolve
+`@cpf/assessment-framework` / `@cpf/identity`): a `deps`/`build` stage
+compiles the three workspaces the API needs, a separate `prod-deps` stage
+installs a fresh production-only `node_modules` from the lockfile, and the
+final `runtime` stage is `node:22-slim` running as a non-root `cpf` user
+under `tini` (PID 1, correct signal forwarding for `SIGTERM`), with a
+`HEALTHCHECK` hitting `/health` via Node's built-in `fetch` (no `curl`
+installed, keeps the image lean). No Docker engine is available in this
+development environment, so the image cannot be built/run locally — its
+correctness is proven every CI run by the `container-smoke` job in
+`.github/workflows/ci.yml`, which builds the image, boots it against a real
+Postgres service container, and asserts `/health` reports
+`"mode":"platform"`. If that job goes red, fix forward before merging
+anything else.
+
+`docker-compose.yml` gained a `production` profile (`docker compose
+--profile production up`) — a self-contained reference/on-prem stack (`db` +
+`migrate` + `api`), **not** the recommended real production architecture
+above (which is managed Postgres + a secrets manager, not this file's
+hardcoded-with-env-override placeholder passwords). The `migrate` service
+(`packages/db/scripts/docker-migrate.sh`) applies every migration file and
+then ensures the `cpf_api` LOGIN role exists with an operator-supplied
+password (`CPF_API_PASSWORD` env var, never committed with a real value);
+it is safe only against a **fresh** database — Step 32 adds a
+`schema_migrations` tracking table + `scripts/migrate.mjs` so re-runs
+against an already-migrated database become a safe no-op instead of an
+error.
+
+Reverse proxy (TLS termination in front of the container — the API itself
+speaks plain HTTP): a minimal reference `Caddyfile` —
+
+```
+api.example.eu {
+    reverse_proxy localhost:4000
+    encode gzip
+}
+```
+
+— or the nginx equivalent (`proxy_pass http://127.0.0.1:4000;` inside a
+`server { listen 443 ssl; ... }` block with a Let's Encrypt/ACME-issued
+cert). Neither is run in CI; they are reference configuration only, to be
+adapted to whichever EU-region runtime is chosen (Phase 1 close-out
+decision, still open).
+
 
 ## Runbook: incident response (summary)
 

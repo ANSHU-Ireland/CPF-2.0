@@ -1,0 +1,18 @@
+# Docker build context exclusions (kept in sync with .gitignore intent).
+# apps/api/Dockerfile copies only the specific files/dirs it needs via COPY,
+# but everything NOT excluded here is still sent to the Docker daemon as
+# build context, so keep this list broad.
+
+.git
+.github
+.tmp-pg
+.tmp-extract
+**/node_modules
+**/dist
+**/coverage
+.vscode
+.env
+.env.*
+!.env.example
+*.log
+docs
