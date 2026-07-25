@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { TeamPage } from "../src/pages/TeamPage.js";
@@ -64,5 +64,47 @@ describe("TeamPage", () => {
     );
     renderPage();
     await waitFor(() => expect(screen.getByText("You do not have access to this")).toBeTruthy());
+  });
+
+  it("shows reviewer calibration status and records a new calibration (CPF-33)", async () => {
+    let recorded = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((path: string, init?: RequestInit) => {
+        if (init?.method === "POST" && path.includes("/reviewer-calibrations")) {
+          recorded = true;
+          return Promise.resolve({ status: 201, ok: true, json: async () => ({ id: "cal-1" }) });
+        }
+        if (path.includes("/reviewer-calibrations")) {
+          return Promise.resolve({
+            status: 200,
+            ok: true,
+            json: async () =>
+              recorded
+                ? [{ id: "cal-1", reviewerUserId: "u-1", frameworkVersion: "0.1.0", status: "valid", calibratedAt: "2026-07-25T00:00:00.000Z", expiresAt: null }]
+                : [],
+          });
+        }
+        if (path.endsWith("/users")) {
+          return Promise.resolve({
+            status: 200,
+            ok: true,
+            json: async () => [
+              { id: "u-1", email: "rev@example.com", display_name: "Rev One", status: "active", mfa_enrolled: false, roles: ["reviewer"] },
+            ],
+          });
+        }
+        return Promise.resolve({ status: 200, ok: true, json: async () => [] });
+      }),
+    );
+    renderPage();
+
+    await screen.findByText("Not calibrated");
+    await userEvent.click(screen.getByRole("button", { name: "Record calibration" }));
+    const dialog = screen.getByRole("dialog", { name: "Record reviewer calibration" });
+    await userEvent.type(within(dialog).getByLabelText("Framework version"), "0.1.0");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Record calibration" }));
+
+    await screen.findByText("Calibrated (0.1.0)");
   });
 });

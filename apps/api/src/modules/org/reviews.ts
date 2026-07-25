@@ -20,6 +20,7 @@ import { appendAudit } from "../../db/audit.js";
 import { withOrgTx, type Queryable } from "../../db/pool.js";
 import { requireOrgRole, sendError } from "../auth/guards.js";
 import { requireResponsibleUseAck } from "./acknowledgements.js";
+import { checkReviewerCalibrated } from "./calibration.js";
 
 const AssignReviewSchema = z.object({ reviewerUserId: z.string().uuid() });
 
@@ -100,11 +101,19 @@ export function registerReviewRoutes(app: FastifyInstance): void {
             [orgId, parsed.data.reviewerUserId],
           );
           if (membership.rowCount === 0) return { error: "NOT_A_REVIEWER" as const };
-          const session = await client.query<{ status: SessionState }>(
-            "SELECT status FROM assessment_sessions WHERE id = $1 FOR UPDATE",
+          const session = await client.query<{ status: SessionState; template_version_id: string }>(
+            "SELECT status, template_version_id FROM assessment_sessions WHERE id = $1 FOR UPDATE",
             [sessionId],
           );
           if (!session.rows[0]) return { error: "NOT_FOUND" as const };
+          const templateVersion = await client.query<{ framework_version: string }>(
+            "SELECT framework_version FROM assessment_template_versions WHERE id = $1",
+            [session.rows[0].template_version_id],
+          );
+          const frameworkVersion = templateVersion.rows[0]?.framework_version;
+          if (!frameworkVersion) return { error: "NOT_FOUND" as const };
+          const calibration = await checkReviewerCalibrated(client, orgId, parsed.data.reviewerUserId, frameworkVersion);
+          if (calibration === "NOT_CALIBRATED") return { error: "REVIEWER_NOT_CALIBRATED" as const };
           const next = sessionMachine.next(session.rows[0].status, "begin_review");
           await client.query(
             "UPDATE assessment_sessions SET status = $1, updated_at = now() WHERE id = $2",
@@ -128,6 +137,15 @@ export function registerReviewRoutes(app: FastifyInstance): void {
         if ("error" in result) {
           if (result.error === "NOT_A_REVIEWER") {
             return sendError(reply, 422, "NOT_A_REVIEWER", "The user does not hold the reviewer role in this organisation.", request.id);
+          }
+          if (result.error === "REVIEWER_NOT_CALIBRATED") {
+            return sendError(
+              reply,
+              422,
+              "REVIEWER_NOT_CALIBRATED",
+              "The reviewer does not hold a valid calibration record for this template's framework version.",
+              request.id,
+            );
           }
           return sendError(reply, 404, "NOT_FOUND", "Session not found.", request.id);
         }

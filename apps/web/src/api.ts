@@ -170,6 +170,15 @@ export interface OrgUser {
   roles: string[];
 }
 
+export interface CalibrationRecord {
+  id: string;
+  reviewerUserId: string;
+  frameworkVersion: string;
+  status: string;
+  calibratedAt: string;
+  expiresAt: string | null;
+}
+
 export interface CandidateRow {
   id: string;
   email: string;

@@ -143,7 +143,8 @@ run("CPF platform end-to-end", () => {
          login_attempts, data_rights_requests, legal_holds, evidence_ledger_claims,
          criterion_scores, reviews, evidence_events, disclosure_records,
          assessment_sessions, invitations, candidates, job_profiles,
-         retention_policies, org_memberships, employer_acknowledgements CASCADE`,
+         retention_policies, org_memberships, employer_acknowledgements,
+         reviewer_calibration_records CASCADE`,
     );
 
     const orgAId = await createOrg("it-employer-a");
@@ -306,6 +307,32 @@ run("CPF platform end-to-end", () => {
       payload: { reviewerUserId: hmUserId },
     });
     expect(badAssign.statusCode).toBe(422);
+
+    // Reviewer calibration gating (CPF-33): assigning an uncalibrated reviewer is rejected.
+    const uncalibratedAssign = await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${orgA.orgId}/sessions/${sessionId}/reviews`,
+      headers: authed(orgA.token),
+      payload: { reviewerUserId },
+    });
+    expect(uncalibratedAssign.statusCode, uncalibratedAssign.body).toBe(422);
+    expect(uncalibratedAssign.json().error.code).toBe("REVIEWER_NOT_CALIBRATED");
+
+    const calibrate = await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${orgA.orgId}/reviewer-calibrations`,
+      headers: authed(orgA.token),
+      payload: { reviewerUserId, frameworkVersion: "0.1.0" },
+    });
+    expect(calibrate.statusCode, calibrate.body).toBe(201);
+
+    const listCalibrations = await app.inject({
+      method: "GET",
+      url: `/v1/orgs/${orgA.orgId}/reviewer-calibrations?reviewerUserId=${reviewerUserId}`,
+      headers: authed(orgA.token),
+    });
+    expect(listCalibrations.json().records).toHaveLength(1);
+
     const assign = await app.inject({
       method: "POST",
       url: `/v1/orgs/${orgA.orgId}/sessions/${sessionId}/reviews`,
@@ -615,6 +642,35 @@ run("CPF platform end-to-end", () => {
     // RLS backstop: no tenant context ⇒ zero rows even for the table owner.
     const bare = await getPool().query("SELECT count(*)::int AS n FROM candidates");
     expect(bare.rows[0].n).toBe(0);
+  });
+
+  it("honours calibration record expiry when gating review assignment (CPF-33)", async () => {
+    const expiredReviewer = await createActiveUser("reviewer-expired@it.cpf.test", PW);
+    await addMembership(orgA.orgId, expiredReviewer, "reviewer");
+    const pastExpiry = new Date(Date.now() - 60_000).toISOString();
+    const expiredRecord = await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${orgA.orgId}/reviewer-calibrations`,
+      headers: authed(orgA.token),
+      payload: { reviewerUserId: expiredReviewer, frameworkVersion: "0.1.0", expiresAt: pastExpiry },
+    });
+    expect(expiredRecord.statusCode, expiredRecord.body).toBe(201);
+
+    const rejectedAssign = await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${orgA.orgId}/sessions/${sessionId}/reviews`,
+      headers: authed(orgA.token),
+      payload: { reviewerUserId: expiredReviewer },
+    });
+    expect(rejectedAssign.statusCode, rejectedAssign.body).toBe(422);
+    expect(rejectedAssign.json().error.code).toBe("REVIEWER_NOT_CALIBRATED");
+
+    const revoke = await app.inject({
+      method: "DELETE",
+      url: `/v1/orgs/${orgA.orgId}/reviewer-calibrations/${expiredRecord.json().id}`,
+      headers: authed(orgA.token),
+    });
+    expect(revoke.statusCode).toBe(204);
   });
 
   it("maintains a verifiable, append-only audit chain", async () => {

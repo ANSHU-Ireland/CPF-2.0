@@ -1,6 +1,6 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { useParams } from "react-router";
-import { api, type OrgUser } from "../api.js";
+import { api, type CalibrationRecord, type OrgUser } from "../api.js";
 import { Alert, EmptyState, ErrorState, Field, Loading, Modal, StatusPill } from "../ui.js";
 import { useQuery } from "../useQuery.js";
 
@@ -29,6 +29,8 @@ export function TeamPage(): ReactNode {
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [invited, setInvited] = useState<InvitedUser | null>(null);
+  const [calibratingUserId, setCalibratingUserId] = useState<string | null>(null);
+  const [calibrationVersion, setCalibrationVersion] = useState(0);
 
   async function onInvite(event: FormEvent): Promise<void> {
     event.preventDefault();
@@ -84,6 +86,7 @@ export function TeamPage(): ReactNode {
                 <th scope="col">Roles</th>
                 <th scope="col">Status</th>
                 <th scope="col">MFA</th>
+                <th scope="col">Calibration</th>
               </tr>
             </thead>
             <tbody>
@@ -97,6 +100,18 @@ export function TeamPage(): ReactNode {
                   </td>
                   <td data-label="MFA">
                     <span className="pill">{u.mfa_enrolled ? "Enrolled" : "Not enrolled"}</span>
+                  </td>
+                  <td data-label="Calibration">
+                    {u.roles.includes("reviewer") ? (
+                      <CalibrationCell
+                        orgId={orgId!}
+                        reviewerUserId={u.id}
+                        version={calibrationVersion}
+                        onRecord={() => setCalibratingUserId(u.id)}
+                      />
+                    ) : (
+                      <span className="muted">—</span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -151,7 +166,106 @@ export function TeamPage(): ReactNode {
           </form>
         )}
       </Modal>
+
+      {calibratingUserId ? (
+        <RecordCalibrationModal
+          orgId={orgId!}
+          reviewerUserId={calibratingUserId}
+          onClose={() => setCalibratingUserId(null)}
+          onSaved={() => setCalibrationVersion((v) => v + 1)}
+        />
+      ) : null}
     </div>
+  );
+}
+
+function CalibrationCell(props: {
+  orgId: string;
+  reviewerUserId: string;
+  version: number;
+  onRecord: () => void;
+}): ReactNode {
+  const { orgId, reviewerUserId, version, onRecord } = props;
+  const records = useQuery(
+    () => api.get<CalibrationRecord[]>(`/v1/orgs/${orgId}/reviewer-calibrations?reviewerUserId=${reviewerUserId}`),
+    [orgId, reviewerUserId, version],
+  );
+
+  if (records.loading) return <span className="muted">Loading…</span>;
+  if (records.error) return <span className="muted">Unknown</span>;
+  const latest = (records.data ?? []).find(
+    (r) => r.status === "valid" && (r.expiresAt === null || new Date(r.expiresAt).getTime() > Date.now()),
+  );
+
+  return (
+    <div className="row">
+      {latest ? (
+        <span className="pill">Calibrated ({latest.frameworkVersion})</span>
+      ) : (
+        <span className="pill">Not calibrated</span>
+      )}
+      <button type="button" className="btn-secondary" onClick={onRecord}>
+        Record calibration
+      </button>
+    </div>
+  );
+}
+
+function RecordCalibrationModal(props: {
+  orgId: string;
+  reviewerUserId: string;
+  onClose: () => void;
+  onSaved: () => void;
+}): ReactNode {
+  const { orgId, reviewerUserId, onClose, onSaved } = props;
+  const [frameworkVersion, setFrameworkVersion] = useState("");
+  const [expiresAt, setExpiresAt] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function onSubmit(event: FormEvent): Promise<void> {
+    event.preventDefault();
+    setSubmitting(true);
+    setError(null);
+    try {
+      await api.post(`/v1/orgs/${orgId}/reviewer-calibrations`, {
+        reviewerUserId,
+        frameworkVersion,
+        ...(expiresAt ? { expiresAt: new Date(expiresAt).toISOString() } : {}),
+      });
+      onSaved();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not record calibration.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Modal open title="Record reviewer calibration" onClose={onClose}>
+      <form onSubmit={(e) => void onSubmit(e)}>
+        {error ? <Alert kind="danger">{error}</Alert> : null}
+        <Field label="Framework version" hint="e.g. 0.1.0 — must match the template's published version.">
+          {({ id }) => (
+            <input id={id} required value={frameworkVersion} onChange={(e) => setFrameworkVersion(e.target.value)} />
+          )}
+        </Field>
+        <Field label="Expires at (optional)">
+          {({ id }) => (
+            <input
+              id={id}
+              type="datetime-local"
+              value={expiresAt}
+              onChange={(e) => setExpiresAt(e.target.value)}
+            />
+          )}
+        </Field>
+        <button type="submit" className="btn" disabled={submitting || frameworkVersion.trim().length === 0}>
+          {submitting ? "Recording…" : "Record calibration"}
+        </button>
+      </form>
+    </Modal>
   );
 }
 
