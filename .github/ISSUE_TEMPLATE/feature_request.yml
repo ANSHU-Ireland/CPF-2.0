@@ -1,0 +1,29 @@
+name: Feature request
+description: A new capability or change to existing behaviour
+labels: ["feature", "triage"]
+body:
+  - type: textarea
+    id: user-need
+    attributes:
+      label: User and need
+      description: "As a <role>, I need <capability> so that <business value>."
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+    validations:
+      required: true
+  - type: textarea
+    id: compliance
+    attributes:
+      label: Compliance / governance implications
+      description: New personal data? AI involvement? Monitoring? Retention changes? If yes, describe.
+    validations:
+      required: true
+  - type: input
+    id: module
+    attributes:
+      label: Target module
+      placeholder: e.g. assessment-engine, reviewer-workspace, candidate-portal

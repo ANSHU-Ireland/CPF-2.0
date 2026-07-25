@@ -1,0 +1,41 @@
+name: Compliance / security task
+description: A control, assessment, register update, or review requirement
+labels: ["compliance", "triage"]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options:
+        - GDPR / data protection
+        - EU AI Act
+        - Accessibility
+        - Security control
+        - Vendor / subprocessor
+        - Retention / deletion
+        - Audit / evidence
+    validations:
+      required: true
+  - type: textarea
+    id: requirement
+    attributes:
+      label: Requirement and source
+      description: Cite the register row, legal provision, or policy section driving this task.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence of completion required
+    validations:
+      required: true
+  - type: dropdown
+    id: blocking
+    attributes:
+      label: Blocking level
+      options:
+        - "Blocks pilot"
+        - "Blocks production"
+        - "Scheduled control"
+    validations:
+      required: true

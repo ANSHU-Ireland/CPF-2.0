@@ -1,0 +1,40 @@
+name: Bug report
+description: A defect in implemented functionality
+labels: ["bug", "triage"]
+body:
+  - type: input
+    id: area
+    attributes:
+      label: Area
+      placeholder: e.g. assessment-framework scoring, API, migrations
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour (include request IDs / logs, never personal data)
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction steps
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - "P0 — data leak / legal / integrity failure"
+        - "P1 — core workflow broken"
+        - "P2 — degraded behaviour with workaround"
+        - "P3 — minor"
+    validations:
+      required: true

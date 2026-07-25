@@ -1,0 +1,103 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Generate seed (validates framework data → SQL pipeline)
+        run: npm run seed:generate
+
+  migrations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: cpf
+          POSTGRES_PASSWORD: cpf_ci
+          POSTGRES_DB: cpf
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cpf -d cpf"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply migrations
+        run: |
+          for f in packages/db/migrations/*.sql; do
+            echo "Applying $f"
+            PGPASSWORD=cpf_ci psql -h localhost -U cpf -d cpf -v ON_ERROR_STOP=1 -f "$f"
+          done
+
+      - name: Generate and apply seed
+        run: |
+          npm run seed:generate
+          PGPASSWORD=cpf_ci psql -h localhost -U cpf -d cpf -v ON_ERROR_STOP=1 -f packages/db/seed/generated/seed.sql
+
+      - name: Verify seed and tenant isolation defaults
+        run: |
+          PGPASSWORD=cpf_ci psql -h localhost -U cpf -d cpf -v ON_ERROR_STOP=1 -c "
+            DO \$\$
+            DECLARE n int;
+            BEGIN
+              SELECT count(*) INTO n FROM assessment_template_versions;
+              IF n <> 10 THEN RAISE EXCEPTION 'expected 10 template versions, found %', n; END IF;
+            END \$\$;"
+          # RLS must be enabled on every tenant table
+          PGPASSWORD=cpf_ci psql -h localhost -U cpf -d cpf -v ON_ERROR_STOP=1 -c "
+            DO \$\$
+            DECLARE bad text;
+            BEGIN
+              SELECT string_agg(tablename, ', ') INTO bad
+              FROM pg_tables t
+              WHERE schemaname = 'public'
+                AND tablename IN ('candidates','invitations','assessment_sessions','evidence_events','reviews','criterion_scores','evidence_ledger_claims','data_rights_requests')
+                AND NOT EXISTS (
+                  SELECT 1 FROM pg_class c WHERE c.relname = t.tablename AND c.relrowsecurity
+                );
+              IF bad IS NOT NULL THEN RAISE EXCEPTION 'RLS disabled on: %', bad; END IF;
+            END \$\$;"

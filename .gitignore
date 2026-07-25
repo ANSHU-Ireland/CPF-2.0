@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Environment & secrets — never commit
+.env
+.env.*
+!.env.example
+
+# Local extraction workspace (source documents are not committed)
+.tmp-extract/
+
+# Test & coverage output
+coverage/
+.vitest/
+
+# Generated seed output (regenerate with npm run seed:generate)
+packages/db/seed/generated/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/*
+!.vscode/extensions.json

@@ -1,0 +1,22 @@
+{
+  "name": "cpf-enterprise-ecosystem",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CPF Enterprise Ecosystem — evidence-based, human-reviewed AI-collaboration assessment platform for European enterprise hiring, learning, and workforce intelligence.",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @cpf/assessment-framework && npm run build -w @cpf/api",
+    "test": "npm run build -w @cpf/assessment-framework && npm run test --workspaces --if-present",
+    "typecheck": "npm run build -w @cpf/assessment-framework && npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "seed:generate": "node packages/db/scripts/generate-seed.mjs",
+    "api:dev": "npm run build -w @cpf/assessment-framework && npm run dev --workspace @cpf/api"
+  }
+}
