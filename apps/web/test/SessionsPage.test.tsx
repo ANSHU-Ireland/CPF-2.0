@@ -21,6 +21,7 @@ function session(overrides: Partial<SessionRow>): SessionRow {
     review_id: null,
     review_status: null,
     reviewer_user_id: null,
+    second_reviewer_user_id: null,
     ...overrides,
   };
 }

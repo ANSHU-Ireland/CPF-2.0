@@ -433,45 +433,34 @@ run("CPF platform end-to-end", () => {
     });
     expect(badScore.statusCode).toBe(422);
 
-    // Variance ≥ 2 forces adjudication before finalisation.
+    // Score every criterion as the sole (reviewer1) reviewer — single-reviewer
+    // path, no variance. Double-scoring/adjudication with two identities is
+    // covered by a dedicated test (CPF-38).
     const template = (await app.inject({ method: "GET", url: "/v1/framework/templates/SE1" })).json();
-    const varianceScores = template.criteria.map((c: { id: string }, i: number) => ({
+    const singleReviewerScores = template.criteria.map((c: { id: string }) => ({
       criterionId: c.id,
       reviewer1Score: 4,
-      ...(i === 0 ? { reviewer2Score: 2 } : {}),
       evidenceNote: `Observed evidence for ${c.id}.`,
       confidence: "medium",
     }));
-    const saveVariance = await app.inject({
+    const saveScores = await app.inject({
       method: "PUT",
       url: `/v1/orgs/${orgA.orgId}/reviews/${reviewId}/scores`,
       headers: authed(reviewerToken),
-      payload: { scores: varianceScores },
+      payload: { scores: singleReviewerScores },
     });
-    expect(saveVariance.statusCode, saveVariance.body).toBe(200);
-    const blockedFinalise = await app.inject({
-      method: "POST",
-      url: `/v1/orgs/${orgA.orgId}/reviews/${reviewId}/finalise`,
-      headers: authed(reviewerToken),
-      payload: {
-        rationale: "Strong verification behaviour across two independent sources.",
-        confidence: "medium-high",
-        limitations: "Task did not test multi-service integration.",
-      },
-    });
-    expect(blockedFinalise.statusCode).toBe(422);
-    expect(blockedFinalise.json().error.code).toBe("ADJUDICATION_REQUIRED");
+    expect(saveScores.statusCode, saveScores.body).toBe(200);
 
-    // Adjudicate, preview, finalise.
-    const adjudicated = await app.inject({
+    // Reviewer1 may not write reviewer2Score or adjudicatedScore fields (CPF-38).
+    const forbiddenField = await app.inject({
       method: "PUT",
       url: `/v1/orgs/${orgA.orgId}/reviews/${reviewId}/scores`,
       headers: authed(reviewerToken),
-      payload: {
-        scores: [{ criterionId: template.criteria[0].id, reviewer1Score: 4, reviewer2Score: 2, adjudicatedScore: 3, evidenceNote: "Adjudicated after discussion.", confidence: "medium" }],
-      },
+      payload: { scores: [{ criterionId: template.criteria[0].id, reviewer2Score: 2 }] },
     });
-    expect(adjudicated.statusCode).toBe(200);
+    expect(forbiddenField.statusCode, forbiddenField.body).toBe(403);
+    expect(forbiddenField.json().error.code).toBe("FORBIDDEN");
+
     const preview = await app.inject({
       method: "GET",
       url: `/v1/orgs/${orgA.orgId}/reviews/${reviewId}/preview`,
@@ -672,6 +661,202 @@ run("CPF platform end-to-end", () => {
     });
     expect(revoke.statusCode).toBe(204);
   });
+
+  it("supports second-reviewer assignment, actor-scoped score writes, and adjudication (CPF-38)", async () => {
+    // Fresh candidate/session dedicated to this test — the main journey's review is already finalised.
+    const job2 = await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${orgA.orgId}/job-profiles`,
+      headers: authed(hmToken),
+      payload: { title: "Backend Engineer II", roleFamily: "software-engineering" },
+    });
+    const jobId2 = job2.json().id;
+    const candidate2 = await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${orgA.orgId}/candidates`,
+      headers: authed(hmToken),
+      payload: { email: "double-score@candidate.test", fullName: "Double Score Candidate" },
+    });
+    const candidateId2 = candidate2.json().id;
+    const invitation2 = await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${orgA.orgId}/invitations`,
+      headers: authed(hmToken),
+      payload: { candidateId: candidateId2, jobProfileId: jobId2, templateCode: "SE1" },
+    });
+    const candidateToken2 = invitation2.json().candidateAccessToken;
+    const landing2 = await app.inject({ method: "GET", url: `/v1/candidate/${candidateToken2}` });
+    expect(landing2.statusCode, landing2.body).toBe(200);
+    const accept2 = await app.inject({ method: "POST", url: `/v1/candidate/${candidateToken2}/accept` });
+    expect(accept2.statusCode, accept2.body).toBe(201);
+    const sessionId2 = accept2.json().sessionId;
+    const ack2 = await app.inject({ method: "POST", url: `/v1/candidate/${candidateToken2}/disclosure/acknowledge` });
+    expect(ack2.statusCode, ack2.body).toBe(200);
+    const start2 = await app.inject({ method: "POST", url: `/v1/candidate/${candidateToken2}/start` });
+    expect(start2.statusCode, start2.body).toBe(200);
+    const submit2 = await app.inject({ method: "POST", url: `/v1/candidate/${candidateToken2}/submit` });
+    expect(submit2.statusCode, submit2.body).toBe(200);
+    expect(submit2.json().status).toBe("submitted");
+
+    // Assign reviewer1 (already calibrated from the main journey).
+    const assign2 = await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${orgA.orgId}/sessions/${sessionId2}/reviews`,
+      headers: authed(orgA.token),
+      payload: { reviewerUserId },
+    });
+    expect(assign2.statusCode, assign2.body).toBe(201);
+    const reviewId2 = assign2.json().reviewId;
+
+    // Second reviewer: create, calibrate, assign.
+    const reviewer2UserId = await createActiveUser("reviewer-2@it.cpf.test", PW);
+    await addMembership(orgA.orgId, reviewer2UserId, "reviewer");
+    const calibrateSecond = await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${orgA.orgId}/reviewer-calibrations`,
+      headers: authed(orgA.token),
+      payload: { reviewerUserId: reviewer2UserId, frameworkVersion: "0.1.0" },
+    });
+    expect(calibrateSecond.statusCode, calibrateSecond.body).toBe(201);
+    const reviewer2Token = await login("reviewer-2@it.cpf.test", PW);
+
+    const assignSecond = await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${orgA.orgId}/reviews/${reviewId2}/second-reviewer`,
+      headers: authed(orgA.token),
+      payload: { reviewerUserId: reviewer2UserId },
+    });
+    expect(assignSecond.statusCode, assignSecond.body).toBe(201);
+
+    // The same person cannot be assigned as both reviewers.
+    const sameReviewer = await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${orgA.orgId}/reviews/${reviewId2}/second-reviewer`,
+      headers: authed(orgA.token),
+      payload: { reviewerUserId },
+    });
+    expect(sameReviewer.statusCode, sameReviewer.body).toBe(422);
+    expect(sameReviewer.json().error.code).toBe("SAME_REVIEWER");
+
+    const template = (await app.inject({ method: "GET", url: "/v1/framework/templates/SE1" })).json();
+    const varianceCriterion = template.criteria[0].id as string;
+    const otherCriteria = template.criteria.slice(1).map((c: { id: string }) => c.id) as string[];
+
+    // Reviewer1 scores every criterion.
+    const r1Scores = template.criteria.map((c: { id: string }) => ({
+      criterionId: c.id,
+      reviewer1Score: 4,
+      evidenceNote: `R1 evidence for ${c.id}.`,
+      confidence: "medium",
+    }));
+    const saveR1 = await app.inject({
+      method: "PUT",
+      url: `/v1/orgs/${orgA.orgId}/reviews/${reviewId2}/scores`,
+      headers: authed(reviewerToken),
+      payload: { scores: r1Scores },
+    });
+    expect(saveR1.statusCode, saveR1.body).toBe(200);
+
+    // Reviewer2 cannot write reviewer1Score or adjudicatedScore (403).
+    const r2Forbidden1 = await app.inject({
+      method: "PUT",
+      url: `/v1/orgs/${orgA.orgId}/reviews/${reviewId2}/scores`,
+      headers: authed(reviewer2Token),
+      payload: { scores: [{ criterionId: varianceCriterion, reviewer1Score: 1 }] },
+    });
+    expect(r2Forbidden1.statusCode).toBe(403);
+    expect(r2Forbidden1.json().error.code).toBe("FORBIDDEN");
+    const r2Forbidden2 = await app.inject({
+      method: "PUT",
+      url: `/v1/orgs/${orgA.orgId}/reviews/${reviewId2}/scores`,
+      headers: authed(reviewer2Token),
+      payload: { scores: [{ criterionId: varianceCriterion, adjudicatedScore: 3 }] },
+    });
+    expect(r2Forbidden2.statusCode).toBe(403);
+
+    // Admin cannot adjudicate before both reviewer scores exist for a criterion.
+    const prematureAdjudication = await app.inject({
+      method: "PUT",
+      url: `/v1/orgs/${orgA.orgId}/reviews/${reviewId2}/scores`,
+      headers: authed(orgA.token),
+      payload: { scores: [{ criterionId: varianceCriterion, adjudicatedScore: 3 }] },
+    });
+    expect(prematureAdjudication.statusCode, prematureAdjudication.body).toBe(422);
+    expect(prematureAdjudication.json().error.code).toBe("ADJUDICATION_SCORE_PREMATURE");
+
+    // Reviewer2 scores every criterion, introducing variance ≥ 2 on one criterion.
+    const r2Scores = [
+      { criterionId: varianceCriterion, reviewer2Score: 1, evidenceNote: "R2 divergent read.", confidence: "medium" },
+      ...otherCriteria.map((id) => ({ criterionId: id, reviewer2Score: 4, evidenceNote: `R2 evidence for ${id}.`, confidence: "medium" })),
+    ];
+    const saveR2 = await app.inject({
+      method: "PUT",
+      url: `/v1/orgs/${orgA.orgId}/reviews/${reviewId2}/scores`,
+      headers: authed(reviewer2Token),
+      payload: { scores: r2Scores },
+    });
+    expect(saveR2.statusCode, saveR2.body).toBe(200);
+
+    // Reviewer1 still cannot write reviewer2Score/adjudicatedScore (403).
+    const r1Forbidden = await app.inject({
+      method: "PUT",
+      url: `/v1/orgs/${orgA.orgId}/reviews/${reviewId2}/scores`,
+      headers: authed(reviewerToken),
+      payload: { scores: [{ criterionId: varianceCriterion, reviewer2Score: 5 }] },
+    });
+    expect(r1Forbidden.statusCode).toBe(403);
+
+    // Finalisation is blocked until the variance is adjudicated.
+    const blockedFinalise = await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${orgA.orgId}/reviews/${reviewId2}/finalise`,
+      headers: authed(reviewerToken),
+      payload: {
+        rationale: "Two independent reviewers scored this session; one criterion diverged.",
+        confidence: "medium",
+        limitations: "Awaiting adjudication on one criterion.",
+      },
+    });
+    expect(blockedFinalise.statusCode).toBe(422);
+    expect(blockedFinalise.json().error.code).toBe("ADJUDICATION_REQUIRED");
+
+    // Admin cannot write reviewer1Score/reviewer2Score (403), but can adjudicate now both scores exist.
+    const adminForbidden = await app.inject({
+      method: "PUT",
+      url: `/v1/orgs/${orgA.orgId}/reviews/${reviewId2}/scores`,
+      headers: authed(orgA.token),
+      payload: { scores: [{ criterionId: varianceCriterion, reviewer1Score: 4 }] },
+    });
+    expect(adminForbidden.statusCode).toBe(403);
+
+    const adjudicate = await app.inject({
+      method: "PUT",
+      url: `/v1/orgs/${orgA.orgId}/reviews/${reviewId2}/scores`,
+      headers: authed(orgA.token),
+      payload: { scores: [{ criterionId: varianceCriterion, adjudicatedScore: 3 }] },
+    });
+    expect(adjudicate.statusCode, adjudicate.body).toBe(200);
+
+    const finalise2 = await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${orgA.orgId}/reviews/${reviewId2}/finalise`,
+      headers: authed(reviewerToken),
+      payload: {
+        rationale: "Two independent reviewers scored this session; the divergent criterion was adjudicated.",
+        confidence: "medium",
+        limitations: "None beyond a single simulated task.",
+      },
+    });
+    expect(finalise2.statusCode, finalise2.body).toBe(200);
+
+    // The second reviewer can also read the (now finalised) review detail.
+    const detailAsReviewer2 = await app.inject({
+      method: "GET",
+      url: `/v1/orgs/${orgA.orgId}/reviews/${reviewId2}`,
+      headers: authed(reviewer2Token),
+    });
+    expect(detailAsReviewer2.statusCode).toBe(200);
+  }, 60_000);
 
   it("maintains a verifiable, append-only audit chain", async () => {
     const verify = await app.inject({

@@ -13,6 +13,7 @@ import {
   type StoredScore,
 } from "../api.js";
 import { Alert, BandBadge, ErrorState, Field, Loading, Modal, StatusPill, formatDate } from "../ui.js";
+import { useAuth } from "../auth.js";
 import { useQuery } from "../useQuery.js";
 
 const CONFIDENCE_LEVELS = ["high", "medium-high", "medium", "low", "insufficient"] as const;
@@ -40,7 +41,7 @@ type Drafts = Record<string, ScoreDraft>;
 
 type DraftAction =
   | { type: "hydrate"; scores: StoredScore[] }
-  | { type: "setScore"; criterionId: string; score: number | undefined }
+  | { type: "setScore"; criterionId: string; field: "reviewer1Score" | "reviewer2Score" | "adjudicatedScore"; score: number | undefined }
   | { type: "setNote"; criterionId: string; note: string }
   | { type: "setConfidence"; criterionId: string; confidence: ConfidenceLevel | undefined };
 
@@ -62,7 +63,7 @@ function draftsReducer(state: Drafts, action: DraftAction): Drafts {
     case "setScore":
       return {
         ...state,
-        [action.criterionId]: { ...state[action.criterionId], reviewer1Score: action.score },
+        [action.criterionId]: { ...state[action.criterionId], [action.field]: action.score },
       };
     case "setNote":
       return {
@@ -350,6 +351,7 @@ function CriterionRow({
   criterion,
   draft,
   anchors,
+  actor,
   onScore,
   onNote,
   onConfidence,
@@ -357,10 +359,15 @@ function CriterionRow({
   criterion: Criterion;
   draft: ScoreDraft | undefined;
   anchors: ScoringModel["scoreAnchors"];
-  onScore: (score: number | undefined) => void;
+  actor: "reviewer1" | "reviewer2" | "admin";
+  onScore: (field: "reviewer1Score" | "reviewer2Score" | "adjudicatedScore", score: number | undefined) => void;
   onNote: (note: string) => void;
   onConfidence: (confidence: ConfidenceLevel | undefined) => void;
 }): ReactNode {
+  const ownField = actor === "reviewer1" ? "reviewer1Score" : actor === "reviewer2" ? "reviewer2Score" : "adjudicatedScore";
+  const ownScore = draft?.[ownField];
+  const bothPresent = draft?.reviewer1Score !== undefined && draft?.reviewer2Score !== undefined;
+  const adjudicationDisabled = actor === "admin" && !bothPresent;
   return (
     <fieldset className="card">
       <legend>
@@ -372,6 +379,19 @@ function CriterionRow({
         <p>{criterion.evidenceAndRedFlag}</p>
       </details>
 
+      {actor !== "reviewer1" && draft?.reviewer1Score !== undefined ? (
+        <p className="muted">Reviewer 1 score: {draft.reviewer1Score}</p>
+      ) : null}
+      {actor !== "reviewer2" && draft?.reviewer2Score !== undefined ? (
+        <p className="muted">Reviewer 2 score: {draft.reviewer2Score}</p>
+      ) : null}
+      {actor !== "admin" && draft?.adjudicatedScore !== undefined ? (
+        <p className="muted">Adjudicated score: {draft.adjudicatedScore}</p>
+      ) : null}
+      {adjudicationDisabled ? (
+        <Alert kind="info">Both reviewer scores are required before this criterion can be adjudicated.</Alert>
+      ) : null}
+
       <div className="row" role="radiogroup" aria-label={`Score for ${criterion.id}`}>
         {anchors.map((a) => (
           <label key={a.score} className="row" title={a.interpretation}>
@@ -379,8 +399,9 @@ function CriterionRow({
               type="radio"
               name={`score-${criterion.id}`}
               value={a.score}
-              checked={draft?.reviewer1Score === a.score}
-              onChange={() => onScore(a.score)}
+              disabled={adjudicationDisabled}
+              checked={ownScore === a.score}
+              onChange={() => onScore(ownField, a.score)}
             />
             {a.score} — {a.anchor}
           </label>
@@ -388,34 +409,38 @@ function CriterionRow({
         <button
           type="button"
           className="btn secondary"
-          onClick={() => onScore(undefined)}
-          disabled={draft?.reviewer1Score === undefined}
+          onClick={() => onScore(ownField, undefined)}
+          disabled={adjudicationDisabled || ownScore === undefined}
         >
           Clear score
         </button>
       </div>
 
-      <Field label="Evidence note">
-        {({ id }) => (
-          <textarea id={id} value={draft?.evidenceNote ?? ""} onChange={(e) => onNote(e.target.value)} />
-        )}
-      </Field>
-      <Field label="Confidence">
-        {({ id }) => (
-          <select
-            id={id}
-            value={draft?.confidence ?? ""}
-            onChange={(e) => onConfidence(e.target.value ? (e.target.value as ConfidenceLevel) : undefined)}
-          >
-            <option value="">Not assessed</option>
-            {CONFIDENCE_LEVELS.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        )}
-      </Field>
+      {actor !== "admin" ? (
+        <>
+          <Field label="Evidence note">
+            {({ id }) => (
+              <textarea id={id} value={draft?.evidenceNote ?? ""} onChange={(e) => onNote(e.target.value)} />
+            )}
+          </Field>
+          <Field label="Confidence">
+            {({ id }) => (
+              <select
+                id={id}
+                value={draft?.confidence ?? ""}
+                onChange={(e) => onConfidence(e.target.value ? (e.target.value as ConfidenceLevel) : undefined)}
+              >
+                <option value="">Not assessed</option>
+                {CONFIDENCE_LEVELS.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
+        </>
+      ) : null}
     </fieldset>
   );
 }
@@ -505,6 +530,7 @@ function FinaliseModal({
 /** Reviewer workspace: evidence, scoring, adjudication, finalisation. */
 export function ReviewWorkspacePage(): ReactNode {
   const { orgId, reviewId } = useParams();
+  const { user, memberships } = useAuth();
   const detail = useQuery(() => api.get<ReviewDetail>(`/v1/orgs/${orgId}/reviews/${reviewId}`), [orgId, reviewId]);
   const evidence = useQuery(() => api.get<ReviewEvidence>(`/v1/orgs/${orgId}/reviews/${reviewId}/evidence`), [orgId, reviewId]);
   const scoringModel = useQuery(() => api.get<ScoringModel>("/v1/framework/scoring-model"), []);
@@ -526,6 +552,15 @@ export function ReviewWorkspacePage(): ReactNode {
 
   const dirty = JSON.stringify(drafts) !== savedSnapshot && detail.data !== null;
 
+  const actor: "reviewer1" | "reviewer2" | "admin" =
+    detail.data && detail.data.second_reviewer_user_id && user?.id === detail.data.second_reviewer_user_id
+      ? "reviewer2"
+      : detail.data &&
+          user?.id !== detail.data.reviewer_user_id &&
+          memberships.some((m) => m.organisationId === orgId && m.role === "org_admin")
+        ? "admin"
+        : "reviewer1";
+
   useEffect(() => {
     function guard(e: BeforeUnloadEvent): void {
       if (!dirty) return;
@@ -541,10 +576,16 @@ export function ReviewWorkspacePage(): ReactNode {
     setSaving(true);
     setSaveError(null);
     try {
-      const scores = evidence.data.template.criteria.map((c) => ({
-        criterionId: c.id,
-        ...(drafts[c.id] ?? {}),
-      }));
+      const ownField = actor === "reviewer1" ? "reviewer1Score" : actor === "reviewer2" ? "reviewer2Score" : "adjudicatedScore";
+      const scores = evidence.data.template.criteria.map((c) => {
+        const d = drafts[c.id];
+        return {
+          criterionId: c.id,
+          ...(d?.[ownField] !== undefined ? { [ownField]: d[ownField] } : {}),
+          ...(actor !== "admin" && d?.evidenceNote !== undefined ? { evidenceNote: d.evidenceNote } : {}),
+          ...(actor !== "admin" && d?.confidence !== undefined ? { confidence: d.confidence } : {}),
+        };
+      });
       await api.put(`/v1/orgs/${orgId}/reviews/${reviewId}/scores`, { scores });
       setSavedSnapshot(JSON.stringify(drafts));
       preview.reload();
@@ -647,7 +688,8 @@ export function ReviewWorkspacePage(): ReactNode {
               criterion={c}
               draft={drafts[c.id]}
               anchors={scoreAnchors}
-              onScore={(score) => dispatch({ type: "setScore", criterionId: c.id, score })}
+              actor={actor}
+              onScore={(field, score) => dispatch({ type: "setScore", criterionId: c.id, field, score })}
               onNote={(note) => dispatch({ type: "setNote", criterionId: c.id, note })}
               onConfidence={(confidence) => dispatch({ type: "setConfidence", criterionId: c.id, confidence })}
             />

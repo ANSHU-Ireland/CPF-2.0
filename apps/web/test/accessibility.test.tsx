@@ -161,9 +161,17 @@ describe("accessibility smoke (vitest-axe)", () => {
         return { overallEvidenceIndex: null, overallBand: null, scoredCoverage: 0, evidenceNoteCoverage: 0, decisionSupportRoute: "insufficient_evidence", adjudicationsRequired: [], criticalConcerns: [], dimensions: [], governanceNote: "Note." };
       if (path.includes("/scoring-model"))
         return { frameworkVersion: "1.0.0", scoreAnchors: [{ score: 1, anchor: "Poor", interpretation: "Poor." }] };
-      return { id: "rev-1", session_id: "s-1", status: "assigned", final_rationale: null, confidence: null, limitations: null, scores: [] };
+      return { id: "rev-1", session_id: "s-1", reviewer_user_id: "u-reviewer-1", second_reviewer_user_id: null, status: "assigned", final_rationale: null, confidence: null, limitations: null, scores: [] };
     });
-    const { container } = render(routerFor("/org/org-1/reviews/rev-1", "/org/:orgId/reviews/:reviewId", <ReviewWorkspacePage />));
+    const { container } = render(
+      <MemoryRouter initialEntries={["/org/org-1/reviews/rev-1"]}>
+        <AuthProvider>
+          <Routes>
+            <Route path="/org/:orgId/reviews/:reviewId" element={<ReviewWorkspacePage />} />
+          </Routes>
+        </AuthProvider>
+      </MemoryRouter>,
+    );
     await screen.findByText("Rubric");
     await expectNoViolations(container);
   });

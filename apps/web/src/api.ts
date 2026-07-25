@@ -159,6 +159,7 @@ export interface SessionRow {
   review_id: string | null;
   review_status: string | null;
   reviewer_user_id: string | null;
+  second_reviewer_user_id: string | null;
 }
 
 export interface OrgUser {
@@ -215,6 +216,8 @@ export interface StoredScore {
 export interface ReviewDetail {
   id: string;
   session_id: string;
+  reviewer_user_id: string;
+  second_reviewer_user_id: string | null;
   status: string;
   final_rationale: string | null;
   confidence: string | null;

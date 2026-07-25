@@ -49,6 +49,17 @@ const FinaliseSchema = z.object({
 const reviewerRole = requireOrgRole("reviewer");
 const managerRoles = requireOrgRole("org_admin", "hiring_manager");
 const adminRole = requireOrgRole("org_admin");
+const scoreWriteRole = requireOrgRole("reviewer", "org_admin");
+
+const AssignSecondReviewerSchema = z.object({ reviewerUserId: z.string().uuid() });
+
+type ScoreMutationError =
+  | { error: "NOT_FOUND" }
+  | { error: "FINALISED" }
+  | { error: "FORBIDDEN_FIELD" }
+  | { error: "UNKNOWN_CRITERION"; criterionId: string }
+  | { error: "ADJUDICATION_SCORE_PREMATURE"; criterionId: string };
+
 
 interface StoredScoreRow {
   criterion_id: string;
@@ -81,6 +92,17 @@ async function loadFrozenTemplate(client: Queryable, sessionId: string) {
   return AssessmentTemplateSchema.parse(rows.rows[0].definition);
 }
 
+async function loadFrameworkVersionForSession(client: Queryable, sessionId: string): Promise<string | null> {
+  const rows = await client.query<{ framework_version: string }>(
+    `SELECT v.framework_version FROM assessment_sessions s
+       JOIN assessment_template_versions v ON v.id = s.template_version_id
+      WHERE s.id = $1`,
+    [sessionId],
+  );
+  return rows.rows[0]?.framework_version ?? null;
+}
+
+
 export function registerReviewRoutes(app: FastifyInstance): void {
   /** Assign a calibrated reviewer to a submitted session (org admin). */
   app.post(
@@ -106,11 +128,7 @@ export function registerReviewRoutes(app: FastifyInstance): void {
             [sessionId],
           );
           if (!session.rows[0]) return { error: "NOT_FOUND" as const };
-          const templateVersion = await client.query<{ framework_version: string }>(
-            "SELECT framework_version FROM assessment_template_versions WHERE id = $1",
-            [session.rows[0].template_version_id],
-          );
-          const frameworkVersion = templateVersion.rows[0]?.framework_version;
+          const frameworkVersion = await loadFrameworkVersionForSession(client, sessionId);
           if (!frameworkVersion) return { error: "NOT_FOUND" as const };
           const calibration = await checkReviewerCalibrated(client, orgId, parsed.data.reviewerUserId, frameworkVersion);
           if (calibration === "NOT_CALIBRATED") return { error: "REVIEWER_NOT_CALIBRATED" as const };
@@ -159,6 +177,79 @@ export function registerReviewRoutes(app: FastifyInstance): void {
     },
   );
 
+  /**
+   * Assign a second reviewer to an existing review (org admin). Enables the
+   * engine's double-scoring/adjudication path. Sample 20–30% of reviews per
+   * the calibration protocol; not enforced server-side (guidance only).
+   */
+  app.post(
+    "/v1/orgs/:orgId/reviews/:reviewId/second-reviewer",
+    { preHandler: adminRole },
+    async (request, reply) => {
+      const parsed = AssignSecondReviewerSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return sendError(reply, 400, "REQUEST_VALIDATION_FAILED", "reviewerUserId is required.", request.id);
+      }
+      const { reviewId } = request.params as { reviewId: string };
+      const orgId = request.orgId!;
+      const auth = request.auth!;
+      const result = await withOrgTx(orgId, async (client) => {
+        const review = await client.query<{ session_id: string; reviewer_user_id: string; status: ReviewState }>(
+          "SELECT session_id, reviewer_user_id, status FROM reviews WHERE id = $1 FOR UPDATE",
+          [reviewId],
+        );
+        const row = review.rows[0];
+        if (!row) return { error: "NOT_FOUND" as const };
+        if (row.status === "finalised") return { error: "FINALISED" as const };
+        if (parsed.data.reviewerUserId === row.reviewer_user_id) return { error: "SAME_REVIEWER" as const };
+        const membership = await client.query(
+          "SELECT 1 FROM org_memberships WHERE organisation_id = $1 AND user_id = $2 AND role = 'reviewer'",
+          [orgId, parsed.data.reviewerUserId],
+        );
+        if (membership.rowCount === 0) return { error: "NOT_A_REVIEWER" as const };
+        const frameworkVersion = await loadFrameworkVersionForSession(client, row.session_id);
+        if (!frameworkVersion) return { error: "NOT_FOUND" as const };
+        const calibration = await checkReviewerCalibrated(client, orgId, parsed.data.reviewerUserId, frameworkVersion);
+        if (calibration === "NOT_CALIBRATED") return { error: "REVIEWER_NOT_CALIBRATED" as const };
+        await client.query("UPDATE reviews SET second_reviewer_user_id = $1 WHERE id = $2", [
+          parsed.data.reviewerUserId,
+          reviewId,
+        ]);
+        await appendAudit(client, {
+          organisationId: orgId,
+          actorUserId: auth.userId,
+          action: "review.second_reviewer_assigned",
+          entityType: "review",
+          entityId: reviewId,
+          metadata: { reviewerUserId: parsed.data.reviewerUserId },
+        });
+        return { ok: true as const };
+      });
+      if ("error" in result) {
+        if (result.error === "NOT_A_REVIEWER") {
+          return sendError(reply, 422, "NOT_A_REVIEWER", "The user does not hold the reviewer role in this organisation.", request.id);
+        }
+        if (result.error === "REVIEWER_NOT_CALIBRATED") {
+          return sendError(
+            reply,
+            422,
+            "REVIEWER_NOT_CALIBRATED",
+            "The reviewer does not hold a valid calibration record for this template's framework version.",
+            request.id,
+          );
+        }
+        if (result.error === "SAME_REVIEWER") {
+          return sendError(reply, 422, "SAME_REVIEWER", "The second reviewer must be a different person from the first reviewer.", request.id);
+        }
+        if (result.error === "FINALISED") {
+          return sendError(reply, 409, "STATE_CONFLICT", "A finalised review is immutable.", request.id);
+        }
+        return sendError(reply, 404, "NOT_FOUND", "Review not found.", request.id);
+      }
+      return reply.status(201).send(result);
+    },
+  );
+
   /** Reviewer's queue. */
   app.get("/v1/orgs/:orgId/reviews/mine", { preHandler: reviewerRole }, async (request) => {
     const orgId = request.orgId!;
@@ -184,12 +275,12 @@ export function registerReviewRoutes(app: FastifyInstance): void {
       const orgId = request.orgId!;
       const auth = request.auth!;
       return withOrgTx(orgId, async (client) => {
-        const review = await client.query<{ session_id: string; reviewer_user_id: string }>(
-          "SELECT session_id, reviewer_user_id FROM reviews WHERE id = $1",
+        const review = await client.query<{ session_id: string; reviewer_user_id: string; second_reviewer_user_id: string | null }>(
+          "SELECT session_id, reviewer_user_id, second_reviewer_user_id FROM reviews WHERE id = $1",
           [reviewId],
         );
         const row = review.rows[0];
-        if (!row || row.reviewer_user_id !== auth.userId) {
+        if (!row || (row.reviewer_user_id !== auth.userId && row.second_reviewer_user_id !== auth.userId)) {
           return sendError(reply, 404, "NOT_FOUND", "Review not found.", request.id);
         }
         // Integrity signals are returned as a SEPARATE collection with guidance (C-05).
@@ -217,7 +308,7 @@ export function registerReviewRoutes(app: FastifyInstance): void {
   /** Upsert criterion scores (validated against the frozen template version). */
   app.put(
     "/v1/orgs/:orgId/reviews/:reviewId/scores",
-    { preHandler: reviewerRole },
+    { preHandler: scoreWriteRole },
     async (request, reply) => {
       const parsed = ScoreSchema.safeParse(request.body);
       if (!parsed.success) {
@@ -227,14 +318,29 @@ export function registerReviewRoutes(app: FastifyInstance): void {
       const orgId = request.orgId!;
       const auth = request.auth!;
       try {
-        const result = await withOrgTx(orgId, async (client) => {
-          const review = await client.query<{ session_id: string; reviewer_user_id: string; status: ReviewState }>(
-            "SELECT session_id, reviewer_user_id, status FROM reviews WHERE id = $1 FOR UPDATE",
+        const result = await withOrgTx<ScoreMutationError | { saved: number }>(orgId, async (client) => {
+          const review = await client.query<{
+            session_id: string;
+            reviewer_user_id: string;
+            second_reviewer_user_id: string | null;
+            status: ReviewState;
+          }>(
+            "SELECT session_id, reviewer_user_id, second_reviewer_user_id, status FROM reviews WHERE id = $1 FOR UPDATE",
             [reviewId],
           );
           const row = review.rows[0];
-          if (!row || row.reviewer_user_id !== auth.userId) return { error: "NOT_FOUND" as const };
-          if (row.status === "assigned") {
+          if (!row) return { error: "NOT_FOUND" as const };
+          let actor: "reviewer1" | "reviewer2" | "admin";
+          if (auth.userId === row.reviewer_user_id) {
+            actor = "reviewer1";
+          } else if (row.second_reviewer_user_id && auth.userId === row.second_reviewer_user_id) {
+            actor = "reviewer2";
+          } else if (auth.memberships.some((m) => m.organisationId === orgId && m.role === "org_admin")) {
+            actor = "admin";
+          } else {
+            return { error: "NOT_FOUND" as const };
+          }
+          if (row.status === "assigned" && actor === "reviewer1") {
             await client.query("UPDATE reviews SET status = $1 WHERE id = $2", [
               reviewMachine.next("assigned", "begin"),
               reviewId,
@@ -248,30 +354,55 @@ export function registerReviewRoutes(app: FastifyInstance): void {
             if (!known.has(score.criterionId)) {
               return { error: "UNKNOWN_CRITERION" as const, criterionId: score.criterionId };
             }
+            if (actor === "reviewer1" && (score.reviewer2Score !== undefined || score.adjudicatedScore !== undefined)) {
+              return { error: "FORBIDDEN_FIELD" as const };
+            }
+            if (actor === "reviewer2" && (score.reviewer1Score !== undefined || score.adjudicatedScore !== undefined)) {
+              return { error: "FORBIDDEN_FIELD" as const };
+            }
+            if (actor === "admin" && (score.reviewer1Score !== undefined || score.reviewer2Score !== undefined)) {
+              return { error: "FORBIDDEN_FIELD" as const };
+            }
+          }
+          if (actor === "admin") {
+            const existing = await client.query<{ criterion_id: string; reviewer1_score: number | null; reviewer2_score: number | null }>(
+              "SELECT criterion_id, reviewer1_score, reviewer2_score FROM criterion_scores WHERE review_id = $1",
+              [reviewId],
+            );
+            const byId = new Map(existing.rows.map((r) => [r.criterion_id, r]));
+            for (const score of parsed.data.scores) {
+              if (score.adjudicatedScore === undefined) continue;
+              const ex = byId.get(score.criterionId);
+              if (!ex || ex.reviewer1_score === null || ex.reviewer2_score === null) {
+                return { error: "ADJUDICATION_SCORE_PREMATURE" as const, criterionId: score.criterionId };
+              }
+            }
           }
           for (const score of parsed.data.scores) {
             await client.query(
-              `INSERT INTO criterion_scores
-                 (organisation_id, review_id, criterion_id, reviewer1_score, reviewer2_score, adjudicated_score, evidence_note, confidence)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-               ON CONFLICT (review_id, criterion_id) DO UPDATE SET
-                 reviewer1_score = EXCLUDED.reviewer1_score,
-                 reviewer2_score = EXCLUDED.reviewer2_score,
-                 adjudicated_score = EXCLUDED.adjudicated_score,
-                 evidence_note = EXCLUDED.evidence_note,
-                 confidence = EXCLUDED.confidence,
-                 updated_at = now()`,
-              [
-                orgId,
-                reviewId,
-                score.criterionId,
-                score.reviewer1Score ?? null,
-                score.reviewer2Score ?? null,
-                score.adjudicatedScore ?? null,
-                score.evidenceNote ?? null,
-                score.confidence ?? null,
-              ],
+              `INSERT INTO criterion_scores (organisation_id, review_id, criterion_id)
+               VALUES ($1, $2, $3) ON CONFLICT (review_id, criterion_id) DO NOTHING`,
+              [orgId, reviewId, score.criterionId],
             );
+            if (actor === "reviewer1") {
+              await client.query(
+                `UPDATE criterion_scores SET reviewer1_score = $1, evidence_note = $2, confidence = $3, updated_at = now()
+                 WHERE review_id = $4 AND criterion_id = $5`,
+                [score.reviewer1Score ?? null, score.evidenceNote ?? null, score.confidence ?? null, reviewId, score.criterionId],
+              );
+            } else if (actor === "reviewer2") {
+              await client.query(
+                `UPDATE criterion_scores SET reviewer2_score = $1, evidence_note = $2, confidence = $3, updated_at = now()
+                 WHERE review_id = $4 AND criterion_id = $5`,
+                [score.reviewer2Score ?? null, score.evidenceNote ?? null, score.confidence ?? null, reviewId, score.criterionId],
+              );
+            } else {
+              await client.query(
+                `UPDATE criterion_scores SET adjudicated_score = $1, updated_at = now()
+                 WHERE review_id = $2 AND criterion_id = $3`,
+                [score.adjudicatedScore ?? null, reviewId, score.criterionId],
+              );
+            }
           }
           await appendAudit(client, {
             organisationId: orgId,
@@ -279,12 +410,18 @@ export function registerReviewRoutes(app: FastifyInstance): void {
             action: "review.scores_saved",
             entityType: "review",
             entityId: reviewId,
-            metadata: { criteria: parsed.data.scores.map((s) => s.criterionId) },
+            metadata: { criteria: parsed.data.scores.map((s) => s.criterionId), actor },
           });
           return { saved: parsed.data.scores.length };
         });
         if ("error" in result) {
           if (result.error === "NOT_FOUND") return sendError(reply, 404, "NOT_FOUND", "Review not found.", request.id);
+          if (result.error === "FORBIDDEN_FIELD") {
+            return sendError(reply, 403, "FORBIDDEN", "You may only write the score fields that belong to your role on this review.", request.id);
+          }
+          if (result.error === "ADJUDICATION_SCORE_PREMATURE") {
+            return sendError(reply, 422, "ADJUDICATION_SCORE_PREMATURE", `Criterion ${result.criterionId} cannot be adjudicated until both reviewer scores are present.`, request.id);
+          }
           if (result.error === "FINALISED") return sendError(reply, 409, "STATE_CONFLICT", "A finalised review is immutable. Reopen it to make changes.", request.id);
           return sendError(reply, 422, "SCORING_INPUT_INVALID", `Criterion ${result.criterionId} does not exist in the frozen template version.`, request.id);
         }
@@ -307,12 +444,12 @@ export function registerReviewRoutes(app: FastifyInstance): void {
       const orgId = request.orgId!;
       const auth = request.auth!;
       return withOrgTx(orgId, async (client) => {
-        const review = await client.query<{ session_id: string; reviewer_user_id: string }>(
-          "SELECT session_id, reviewer_user_id FROM reviews WHERE id = $1",
+        const review = await client.query<{ session_id: string; reviewer_user_id: string; second_reviewer_user_id: string | null }>(
+          "SELECT session_id, reviewer_user_id, second_reviewer_user_id FROM reviews WHERE id = $1",
           [reviewId],
         );
         const row = review.rows[0];
-        if (!row || row.reviewer_user_id !== auth.userId) {
+        if (!row || (row.reviewer_user_id !== auth.userId && row.second_reviewer_user_id !== auth.userId)) {
           return sendError(reply, 404, "NOT_FOUND", "Review not found.", request.id);
         }
         const template = (await loadFrozenTemplate(client, row.session_id))!;

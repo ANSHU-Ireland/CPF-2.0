@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
+import { AuthProvider } from "../src/auth.js";
 import { ReviewWorkspacePage } from "../src/pages/ReviewWorkspacePage.js";
 
 const TEMPLATE = {
@@ -29,6 +30,8 @@ function detailResponse(overrides: Record<string, unknown> = {}) {
   return {
     id: "rev-1",
     session_id: "s-1",
+    reviewer_user_id: "u-reviewer-1",
+    second_reviewer_user_id: null,
     status: "assigned",
     final_rationale: null,
     confidence: null,
@@ -100,9 +103,11 @@ function stubFetch(opts: {
 function renderPage(): void {
   render(
     <MemoryRouter initialEntries={["/org/org-1/reviews/rev-1"]}>
-      <Routes>
-        <Route path="/org/:orgId/reviews/:reviewId" element={<ReviewWorkspacePage />} />
-      </Routes>
+      <AuthProvider>
+        <Routes>
+          <Route path="/org/:orgId/reviews/:reviewId" element={<ReviewWorkspacePage />} />
+        </Routes>
+      </AuthProvider>
     </MemoryRouter>,
   );
 }

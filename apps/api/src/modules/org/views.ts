@@ -21,7 +21,7 @@ export function registerOrgViewsRoutes(app: FastifyInstance): void {
                 c.id AS candidate_id, c.full_name AS candidate_name, c.email AS candidate_email,
                 j.title AS job_title,
                 t.code AS template_code,
-                r.id AS review_id, r.status AS review_status, r.reviewer_user_id
+                r.id AS review_id, r.status AS review_status, r.reviewer_user_id, r.second_reviewer_user_id
            FROM assessment_sessions s
            JOIN invitations i ON i.id = s.invitation_id
            JOIN candidates c ON c.id = i.candidate_id
@@ -29,7 +29,7 @@ export function registerOrgViewsRoutes(app: FastifyInstance): void {
            JOIN assessment_template_versions v ON v.id = s.template_version_id
            JOIN assessment_templates t ON t.id = v.template_id
            LEFT JOIN LATERAL (
-             SELECT id, status, reviewer_user_id FROM reviews
+             SELECT id, status, reviewer_user_id, second_reviewer_user_id FROM reviews
               WHERE session_id = s.id ORDER BY created_at DESC LIMIT 1
            ) r ON true
           ORDER BY s.created_at DESC
@@ -69,19 +69,20 @@ export function registerOrgViewsRoutes(app: FastifyInstance): void {
           id: string;
           session_id: string;
           reviewer_user_id: string;
+          second_reviewer_user_id: string | null;
           status: string;
           final_rationale: string | null;
           confidence: string | null;
           limitations: string | null;
           finalised_at: Date | null;
         }>(
-          `SELECT id, session_id, reviewer_user_id, status, final_rationale, confidence, limitations, finalised_at
+          `SELECT id, session_id, reviewer_user_id, second_reviewer_user_id, status, final_rationale, confidence, limitations, finalised_at
              FROM reviews WHERE id = $1`,
           [reviewId],
         );
         const row = review.rows[0];
         if (!row) return sendError(reply, 404, "NOT_FOUND", "Review not found.", request.id);
-        const isReviewer = row.reviewer_user_id === auth.userId;
+        const isReviewer = row.reviewer_user_id === auth.userId || row.second_reviewer_user_id === auth.userId;
         const isAdmin = auth.memberships.some(
           (m) => m.organisationId === orgId && m.role === "org_admin",
         );
