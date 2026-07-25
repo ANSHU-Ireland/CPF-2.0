@@ -1,0 +1,10 @@
+{
+  "name": "@cpf/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "CPF database schema: plain-SQL migrations (PostgreSQL 16) with tenant row-level security, tamper-evident audit log, and assessment framework seed generation.",
+  "scripts": {
+    "seed:generate": "node scripts/generate-seed.mjs"
+  }
+}
