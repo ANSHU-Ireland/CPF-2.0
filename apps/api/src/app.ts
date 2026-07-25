@@ -16,6 +16,7 @@ import { registerCandidatePortalRoutes } from "./modules/candidate/portal.js";
 import { registerDataRightsRoutes } from "./modules/org/data-rights.js";
 import { registerHiringRoutes } from "./modules/org/hiring.js";
 import { registerReviewRoutes } from "./modules/org/reviews.js";
+import { registerOrgViewsRoutes } from "./modules/org/views.js";
 import { registerPlatformRoutes } from "./modules/platform/routes.js";
 
 const API_VERSION = "0.1.0";
@@ -177,6 +178,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     registerHiringRoutes(app);
     registerCandidatePortalRoutes(app);
     registerReviewRoutes(app);
+    registerOrgViewsRoutes(app);
     registerDataRightsRoutes(app);
   } else {
     app.log.info(

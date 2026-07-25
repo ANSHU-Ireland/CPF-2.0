@@ -34,6 +34,8 @@ WB = workbook sheet, DIR = directive section, AUD = legacy audit finding).
 - **CPF-23** ✅ Evidence-profile projection (bands/claims/probes, integrity separated, no index).
 - **CPF-24** ✅ Evidence ingestion API: category allow-list, forbidden-event rejection, active-session precondition.
 - **CPF-25** ✅ Data-rights workflows incl. candidate-raised erasure + legal holds (portal + org side).
+- **CPF-27** ✅ Org read-model endpoints for the web UI: sessions pipeline, member directory, review detail (org/views.ts) — integration-tested incl. tenant isolation.
+- **CPF-36 (in progress)** 🟡 Web application: routing/auth/shell/session-restore + 3 real pages (sign-in, platform employer directory, candidate CRM) built, typechecked, tested, and browser-smoke-verified against the real API. Remaining: 10 pages currently typed stubs (templates, job profiles, sessions pipeline, team, data rights, review queue, review workspace, evidence profile, candidate entry, candidate portal) — see Phase B of the delivery plan.
 
 ### Next (Phase 1/2 remainder)
 - **CPF-43** Rate limiting + idempotency middleware. AC: per-token buckets;
@@ -50,7 +52,6 @@ WB = workbook sheet, DIR = directive section, AUD = legacy audit finding).
 - **CPF-33** Reviewer calibration records + assignment gating (Doc T22-P1, WB protocol).
 - **CPF-34** Employer responsible-use acknowledgement (Doc T22-P2).
 - **CPF-35** Candidate imports with partial-failure reports + dedupe merge (DIR §9).
-- **CPF-36** Reviewer / employer / candidate / admin web applications per docs/design specs.
 - **CPF-37** Notification delivery (invitation, activation, DSR clocks) via mail adapter.
 
 ### Deferred / gated

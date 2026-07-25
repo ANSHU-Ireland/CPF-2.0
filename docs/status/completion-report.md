@@ -8,13 +8,15 @@ status document.
 
 **NOT READY** for real candidate processing — by explicit gate, not by defect:
 the legal-review register (LR-01…LR-04) and the remaining Phase-2 candidate/
-reviewer/employer **user interfaces** block pilot. The backend platform now
+reviewer/employer **user interfaces** block pilot. The backend platform
 executes the complete hiring workflow end-to-end with every governance
-guardrail enforced and integration-tested against real PostgreSQL. No
-compliance certification is claimed. No real candidate data has ever entered
-this system.
+guardrail enforced and integration-tested against real PostgreSQL. A web
+application has been started (routing, auth, shell, 3 of 13 pages real; 10
+are typed "under construction" stubs, never dead links) but is not yet
+feature-complete. No compliance certification is claimed. No real candidate
+data has ever entered this system.
 
-## Fully implemented and tested — 92 automated tests green (verified locally 2026-07-25, two consecutive runs)
+## Fully implemented and tested — 98 automated tests green (verified locally 2026-07-25)
 
 | Layer | Evidence |
 |---|---|
@@ -23,7 +25,8 @@ this system.
 | **Lifecycle state machines** (disclosure gate, report gate, pause/resume, reissue, DSR, oversight guard) | 14 machine tests |
 | **Identity primitives** (scrypt w/ OWASP params, opaque hashed tokens, RFC 6238 TOTP against RFC test vectors, base32) | 17 identity tests |
 | **Framework API** (catalogue, stateless evaluation, error contract, security headers) | 8 API tests |
-| **Full platform integration on PostgreSQL 17** — everything below | **15 integration tests** |
+| **Full platform integration on PostgreSQL 17** — everything below, incl. 3 new read-model endpoints (org sessions pipeline, org users directory, review detail) | **15 integration tests** |
+| **Web application scaffold** (routing, session-restore, role-based redirects, auth context, accessible UI primitives, 3 real pages: sign-in, platform employer directory, candidate CRM; 10 typed stub pages for the rest) | 6 component/unit tests + a live browser smoke test |
 
 Integration-verified end-to-end journeys (real HTTP → real database, restricted
 non-superuser role):
@@ -55,6 +58,14 @@ non-superuser role):
 Live smoke test (this machine): `bootstrap.mjs` → platform-mode boot → login →
 employer organisation created via API with first-admin activation token.
 
+Live **web** smoke test (this machine, browser-automated): unauthenticated `/`
+redirects to `/login` → sign-in succeeds → lands on `/platform/organisations`
+with the employer directory rendered from real API data (not mocked) → reload
+preserves the session (no re-login flash) → an unbuilt route renders its
+typed stub, not a dead link → an unknown route renders a 404 with a working
+recovery link → sign-out clears the session and returns to `/login`. Every
+request in the API access log returned 200; no console/network errors.
+
 ## Defects found and fixed by our own tests this cycle (disclosed per §21)
 
 1. Superuser DB connection silently bypassed RLS → dedicated `cpf_app`/`cpf_api`
@@ -73,8 +84,12 @@ environment).
 
 ## Designed but not implemented (honest boundary)
 
-- **All user interfaces** (candidate, reviewer, employer, platform admin) —
-  complete specifications in docs/design; zero UI code exists.
+- **Most user interface pages** — complete specifications in docs/design;
+  10 of 13 planned pages are typed stubs only (assessment library, job
+  profiles, sessions pipeline, team directory, data rights, review queue,
+  review workspace, evidence profile, candidate entry, candidate portal —
+  each renders an accessible "under construction" state, never a dead link).
+  Real: sign-in, platform employer directory, candidate CRM.
 - Notifications/e-mail delivery (invitation + activation tokens are returned
   to the operator for out-of-band delivery), file uploads, candidate imports,
   retention sweep scheduler (erasure service exists and is tested; the cron
@@ -128,9 +143,12 @@ measurement.
 
 ## Verification evidence (commands, this machine, 2026-07-25)
 
-- `npm run typecheck` — clean, strict, all workspaces.
-- `npm test` — 92 passed / 0 failed / 1 intentionally-skipped placeholder
-  (framework 60, identity 17, API 8+15) — run twice consecutively with
-  `DATABASE_URL` (restricted role) + `DATABASE_ADMIN_URL`.
-- `npm audit` — 0 vulnerabilities.
+- `npm run typecheck` — clean, strict, all workspaces (including @cpf/web).
+- `npm test` — 98 passed / 0 failed / 1 intentionally-skipped placeholder
+  (framework 60, identity 17, API 8+15, web 6) with `DATABASE_URL` (restricted
+  role) + `DATABASE_ADMIN_URL` set.
+- `npm audit` — 0 vulnerabilities (across all workspaces incl. @cpf/web).
+- `npx vite build` (@cpf/web) — succeeds, 104 modules.
 - Live boot: platform mode, bootstrap → login → org creation over HTTP.
+- Live web smoke test: sign-in → real API data rendered → session-restore →
+  stub-page/404/sign-out all correct (browser-automated, see above).

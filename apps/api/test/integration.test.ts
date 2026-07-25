@@ -420,7 +420,37 @@ run("CPF platform end-to-end", () => {
   }, 120_000);
 
   it("enforces tenant isolation at API and RLS layers", async () => {
-    // Org B sees nothing of org A.
+    // Read-model endpoints serve the org's own data…
+    const sessions = await app.inject({
+      method: "GET",
+      url: `/v1/orgs/${orgA.orgId}/sessions`,
+      headers: authed(orgA.token),
+    });
+    expect(sessions.statusCode).toBe(200);
+    expect(sessions.json().length).toBeGreaterThan(0);
+    expect(sessions.json()[0]).toMatchObject({ template_code: "SE1" });
+    const members = await app.inject({
+      method: "GET",
+      url: `/v1/orgs/${orgA.orgId}/users`,
+      headers: authed(orgA.token),
+    });
+    expect(members.statusCode).toBe(200);
+    expect(members.json().some((u: { roles: string[] }) => u.roles.includes("reviewer"))).toBe(true);
+    const reviewDetail = await app.inject({
+      method: "GET",
+      url: `/v1/orgs/${orgA.orgId}/reviews/${reviewId}`,
+      headers: authed(reviewerToken),
+    });
+    expect(reviewDetail.statusCode).toBe(200);
+    expect(reviewDetail.json().scores).toHaveLength(18);
+
+    // …and nothing across tenants. Org B sees nothing of org A.
+    const sessionsB = await app.inject({
+      method: "GET",
+      url: `/v1/orgs/${orgB.orgId}/sessions`,
+      headers: authed(orgB.token),
+    });
+    expect(sessionsB.json()).toHaveLength(0);
     const listB = await app.inject({
       method: "GET",
       url: `/v1/orgs/${orgB.orgId}/candidates`,
