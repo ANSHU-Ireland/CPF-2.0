@@ -16,8 +16,10 @@ import type { FastifyInstance } from "fastify";
 import pg from "pg";
 import { hashPassword, totp } from "@cpf/identity";
 import { buildApp } from "../src/app.js";
-import { closePool, getPool } from "../src/db/pool.js";
+import { closePool, getPool, withOrgTx } from "../src/db/pool.js";
 import { runRetentionSweep } from "../src/jobs/retention.js";
+import { enqueueOutboundMessage, processOutboundQueue } from "../src/modules/notifications/queue.js";
+import type { MailPort } from "../src/modules/notifications/mail.js";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 const DATABASE_ADMIN_URL = process.env.DATABASE_ADMIN_URL;
@@ -145,7 +147,7 @@ run("CPF platform end-to-end", () => {
          criterion_scores, reviews, evidence_events, disclosure_records,
          assessment_sessions, invitations, candidates, job_profiles,
          retention_policies, org_memberships, employer_acknowledgements,
-         reviewer_calibration_records CASCADE`,
+         reviewer_calibration_records, outbound_messages CASCADE`,
     );
 
     const orgAId = await createOrg("it-employer-a");
@@ -1080,6 +1082,143 @@ run("CPF platform end-to-end", () => {
     );
     expect(auditRow.rowCount).toBe(1);
     expect(auditRow.rows[0].metadata.candidatesAnonymised).toBe(1);
+  }, 60_000);
+
+  it("outbound message queue: retries with backoff, sends, dead-letters, and audits each transition (CPF-37)", async () => {
+    const notifyOrgId = await createOrg("it-notify-org");
+
+    // A live invitation issued through the real API enqueues an invitation-issued
+    // notice (console adapter path — Mailpit/SMTP is not configured in this suite).
+    const notifyAdmin = await createActiveUser("admin-notify@it.cpf.test", PW);
+    const notifyHm = await createActiveUser("hm-notify@it.cpf.test", PW);
+    await addMembership(notifyOrgId, notifyAdmin, "org_admin");
+    await addMembership(notifyOrgId, notifyHm, "hiring_manager");
+    const notifyHmToken = await login("hm-notify@it.cpf.test", PW);
+    const job = await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${notifyOrgId}/job-profiles`,
+      headers: authed(notifyHmToken),
+      payload: { title: "Backend Engineer", roleFamily: "software-engineering" },
+    });
+    expect(job.statusCode, job.body).toBe(201);
+    const candidate = await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${notifyOrgId}/candidates`,
+      headers: authed(notifyHmToken),
+      payload: { email: "notify-candidate@candidate.test", fullName: "Notify Fixture" },
+    });
+    expect(candidate.statusCode, candidate.body).toBe(201);
+    const invitation = await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${notifyOrgId}/invitations`,
+      headers: authed(notifyHmToken),
+      payload: { candidateId: candidate.json().id, jobProfileId: job.json().id, templateCode: "SE1" },
+    });
+    expect(invitation.statusCode, invitation.body).toBe(201);
+
+    const queued = await admin.query<{ id: string; status: string; message_type: string }>(
+      "SELECT id, status, message_type FROM outbound_messages WHERE organisation_id = $1 ORDER BY created_at",
+      [notifyOrgId],
+    );
+    expect(queued.rows).toHaveLength(1);
+    expect(queued.rows[0]!.message_type).toBe("invitation_issued");
+    expect(queued.rows[0]!.status).toBe("queued");
+
+    // Fresh synthetic message for the retry-then-succeed lifecycle, so the
+    // real invitation notice above is unaffected by the failing adapter below.
+    let retryingMessageId = "";
+    await withOrgTx(notifyOrgId, async (client) => {
+      retryingMessageId = await enqueueOutboundMessage(client, {
+        organisationId: notifyOrgId,
+        messageType: "test_retry",
+        toAddress: "retry@candidate.test",
+        subject: "Retry me",
+        body: "<p>retry body</p>",
+      });
+    });
+
+    // First attempt fails, second (after the backoff window elapses) succeeds.
+    let attemptCount = 0;
+    const flakyThenOkPort: MailPort = {
+      async send(message) {
+        if (message.to !== "retry@candidate.test") return;
+        attemptCount += 1;
+        if (attemptCount === 1) throw new Error("simulated transient SMTP failure");
+      },
+    };
+    const alwaysFailPort: MailPort = {
+      async send(message) {
+        if (message.to === "dead@candidate.test") throw new Error("simulated permanent SMTP failure");
+      },
+    };
+
+    const first = await withOrgTx(notifyOrgId, (client) =>
+      processOutboundQueue(client, { mailPort: flakyThenOkPort }),
+    );
+    expect(first.failed).toBeGreaterThanOrEqual(1);
+    const afterFirst = await admin.query<{ status: string; attempts: number }>(
+      "SELECT status, attempts FROM outbound_messages WHERE id = $1",
+      [retryingMessageId],
+    );
+    expect(afterFirst.rows[0]!.status).toBe("failed");
+    expect(afterFirst.rows[0]!.attempts).toBe(1);
+
+    // Reprocessing immediately does nothing — the backoff window hasn't elapsed.
+    const tooSoon = await withOrgTx(notifyOrgId, (client) =>
+      processOutboundQueue(client, { mailPort: flakyThenOkPort }),
+    );
+    expect(tooSoon.sent + tooSoon.failed + tooSoon.deadLettered).toBe(0);
+
+    // Fast-forward past the backoff window (simulating the scheduled retry job running later).
+    await admin.query("UPDATE outbound_messages SET next_attempt_at = now() - interval '1 second' WHERE id = $1", [
+      retryingMessageId,
+    ]);
+    const second = await withOrgTx(notifyOrgId, (client) =>
+      processOutboundQueue(client, { mailPort: flakyThenOkPort }),
+    );
+    expect(second.sent).toBe(1);
+    const afterSecond = await admin.query<{ status: string }>("SELECT status FROM outbound_messages WHERE id = $1", [
+      retryingMessageId,
+    ]);
+    expect(afterSecond.rows[0]!.status).toBe("sent");
+
+    // Enqueued only now (after the org's queue has drained via the calls above)
+    // so it isn't collaterally processed by the retry-then-succeed adapter.
+    let deadLetterMessageId = "";
+    await withOrgTx(notifyOrgId, async (client) => {
+      deadLetterMessageId = await enqueueOutboundMessage(client, {
+        organisationId: notifyOrgId,
+        messageType: "test_dead_letter",
+        toAddress: "dead@candidate.test",
+        subject: "Always fails",
+        body: "<p>dead body</p>",
+      });
+    });
+
+    // The permanently-failing message ages out to dead_letter after repeated backed-off retries.
+    for (let i = 0; i < 5; i += 1) {
+      await admin.query("UPDATE outbound_messages SET next_attempt_at = now() - interval '1 second' WHERE id = $1", [
+        deadLetterMessageId,
+      ]);
+      await withOrgTx(notifyOrgId, (client) => processOutboundQueue(client, { mailPort: alwaysFailPort }));
+    }
+    const dead = await admin.query<{ status: string; attempts: number }>(
+      "SELECT status, attempts FROM outbound_messages WHERE id = $1",
+      [deadLetterMessageId],
+    );
+    expect(dead.rows[0]!.status).toBe("dead_letter");
+    expect(dead.rows[0]!.attempts).toBe(5);
+
+    const sentAudit = await admin.query(
+      "SELECT 1 FROM audit_log WHERE action = 'notification.sent' AND entity_id = $1",
+      [retryingMessageId],
+    );
+    expect(sentAudit.rowCount).toBe(1);
+    const deadAudit = await admin.query(
+      "SELECT 1 FROM audit_log WHERE action = 'notification.dead_lettered' AND entity_id = $1",
+      [deadLetterMessageId],
+    );
+    expect(deadAudit.rowCount).toBe(1);
   }, 60_000);
 
   it("activates invited users via single-use tokens and enforces password policy", async () => {

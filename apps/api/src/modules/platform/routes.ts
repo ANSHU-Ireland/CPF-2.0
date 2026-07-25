@@ -5,6 +5,8 @@ import { appendAudit } from "../../db/audit.js";
 import { withOrgTx, withTx } from "../../db/pool.js";
 import { requireAuth, requireOrgRole, sendError } from "../auth/guards.js";
 import { ACTIVATION_TTL_HOURS } from "../constants.js";
+import { activationTokenIssuedTemplate } from "../notifications/templates.js";
+import { enqueueOutboundMessage } from "../notifications/queue.js";
 
 const CreateOrganisationSchema = z.object({
   name: z.string().min(2).max(200),
@@ -76,6 +78,14 @@ async function inviteUser(
      VALUES ($1, $2, now() + ($3 || ' hours')::interval)`,
     [userId, hashToken(activationToken), String(ACTIVATION_TTL_HOURS)],
   );
+  const notice = activationTokenIssuedTemplate({ displayName });
+  await enqueueOutboundMessage(client, {
+    organisationId,
+    messageType: "activation_token_issued",
+    toAddress: email,
+    subject: notice.subject,
+    body: notice.body,
+  });
   return { userId, activationToken };
 }
 

@@ -103,3 +103,42 @@ describe("POST /v1/scoring/evaluate", () => {
     expect(res.json().error.code).toBe("SCORING_INPUT_INVALID");
   });
 });
+
+describe("notification templates (CPF-37)", () => {
+  it("HTML-escapes interpolated content so markup cannot be injected", async () => {
+    const { invitationIssuedTemplate, activationTokenIssuedTemplate, dataRightsReceivedTemplate } = await import(
+      "../src/modules/notifications/templates.js"
+    );
+    const malicious = '<script>alert("x")</script>';
+    const invitation = invitationIssuedTemplate({ candidateName: malicious, jobTitle: malicious, orgName: malicious });
+    expect(invitation.body).not.toContain("<script>");
+    expect(invitation.body).toContain("&lt;script&gt;");
+
+    const activation = activationTokenIssuedTemplate({ displayName: malicious });
+    expect(activation.body).not.toContain("<script>");
+
+    const dsr = dataRightsReceivedTemplate({ requestType: malicious, dueAt: malicious });
+    expect(dsr.subject).not.toContain("<script>");
+    expect(dsr.body).not.toContain("<script>");
+  });
+
+  it("never includes access/activation tokens in rendered bodies", async () => {
+    const { invitationIssuedTemplate } = await import("../src/modules/notifications/templates.js");
+    const rendered = invitationIssuedTemplate({ candidateName: "Priya", jobTitle: "Engineer", orgName: "Acme" });
+    expect(rendered.body).not.toMatch(/[A-Za-z0-9_-]{32,}/);
+  });
+
+  it("console mail adapter never logs the message body", async () => {
+    const { consoleAdapter } = await import("../src/modules/notifications/mail.js");
+    const logs: string[] = [];
+    const originalLog = console.log;
+    console.log = (msg: string) => logs.push(msg);
+    try {
+      await consoleAdapter().send({ to: "a@b.test", subject: "Subject only", body: "SECRET_BODY_CONTENT" });
+    } finally {
+      console.log = originalLog;
+    }
+    expect(logs.join("\n")).not.toContain("SECRET_BODY_CONTENT");
+    expect(logs.join("\n")).toContain("Subject only");
+  });
+});

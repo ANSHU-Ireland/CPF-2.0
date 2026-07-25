@@ -15,6 +15,18 @@ const ConfigSchema = z.object({
    * Production refuses to start without it.
    */
   DATABASE_URL: z.string().url().optional(),
+  /**
+   * Outbound-mail delivery. When SMTP_HOST is unset, the console adapter is
+   * used instead (logs message metadata only — never candidate/subject PII
+   * in the body — and never actually delivers). Set all SMTP_* to enable
+   * real delivery.
+   */
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
+  SMTP_SECURE: z.coerce.boolean().default(false),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASSWORD: z.string().optional(),
+  SMTP_FROM: z.string().default("no-reply@cpf.invalid"),
 });
 
 export type AppConfig = z.infer<typeof ConfigSchema>;

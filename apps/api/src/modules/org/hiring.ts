@@ -6,6 +6,8 @@ import { appendAudit } from "../../db/audit.js";
 import { withOrgTx } from "../../db/pool.js";
 import { requireOrgRole, sendError } from "../auth/guards.js";
 import { INVITATION_TTL_DAYS } from "../constants.js";
+import { invitationIssuedTemplate } from "../notifications/templates.js";
+import { enqueueOutboundMessage } from "../notifications/queue.js";
 
 const CreateJobProfileSchema = z.object({
   title: z.string().min(2).max(200),
@@ -181,11 +183,16 @@ export function registerHiringRoutes(app: FastifyInstance): void {
         [templateCode],
       );
       if (!version.rows[0]) return { error: "TEMPLATE_NOT_FOUND" as const };
-      const exists = await client.query(
-        "SELECT 1 FROM candidates WHERE id = $1 UNION ALL SELECT 1 FROM job_profiles WHERE id = $2",
+      const found = await client.query<{ candidate_full_name?: string; job_title?: string }>(
+        `SELECT c.full_name AS candidate_full_name, NULL::text AS job_title FROM candidates c WHERE c.id = $1
+         UNION ALL
+         SELECT NULL::text, j.title FROM job_profiles j WHERE j.id = $2`,
         [candidateId, jobProfileId],
       );
-      if (exists.rowCount !== 2) return { error: "NOT_FOUND" as const };
+      if (found.rowCount !== 2) return { error: "NOT_FOUND" as const };
+      const candidateFullName = found.rows.find((r) => r.candidate_full_name)?.candidate_full_name ?? "Candidate";
+      const jobTitle = found.rows.find((r) => r.job_title)?.job_title ?? "Role";
+      const orgRow = await client.query<{ name: string }>("SELECT name FROM organisations WHERE id = $1", [orgId]);
 
       const token = generateToken();
       // Domain machine: draft --send--> sent (issued immediately on creation).
@@ -204,6 +211,18 @@ export function registerHiringRoutes(app: FastifyInstance): void {
         [hashToken(token), invitationId, orgId, invitation.rows[0]!.expires_at],
       );
       await client.query("UPDATE candidates SET status = 'invited', updated_at = now() WHERE id = $1 AND status = 'created'", [candidateId]);
+      const notice = invitationIssuedTemplate({
+        candidateName: candidateFullName,
+        jobTitle,
+        orgName: orgRow.rows[0]?.name ?? "Organisation",
+      });
+      await enqueueOutboundMessage(client, {
+        organisationId: orgId,
+        messageType: "invitation_issued",
+        toAddress: auth.email,
+        subject: notice.subject,
+        body: notice.body,
+      });
       await appendAudit(client, {
         organisationId: orgId,
         actorUserId: auth.userId,

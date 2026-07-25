@@ -76,6 +76,21 @@ manual investigation before forcing execution with a higher cap.
 Manual erasure (DSR): same anonymisation/deletion shape, single-subject
 scope, dual-confirmation, via the data-rights workflow (not this sweep).
 
+## Runbook: notification delivery & retry (CPF-37)
+Outbound notices (invitation-issued courier note, activation-token issued,
+future DSR clock reminders) are enqueued to `outbound_messages` at the point
+of issuance rather than sent inline. `apps/api/src/jobs/notify.ts` (run via
+`npm run notify:retry` from `apps/api` after `npm run build`) drives delivery
+per org: due `queued`/backed-off `failed` rows are sent through the console
+adapter (default; metadata-only logs, body never printed) or the SMTP adapter
+when `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASSWORD`/`SMTP_FROM` are
+configured. Failures back off exponentially (60s doubling per attempt) and
+age out to `dead_letter` after 5 attempts; every send/dead-letter transition
+is audited. Schedule frequently (e.g. every 5 minutes) via the same
+cron/Task Scheduler mechanism as the retention job. Alert on any
+`dead_letter` rows — they represent notices that never reached their
+recipient and may need manual redelivery.
+
 ## Runbook: AI kill switch (when AI features exist)
 Org scope: org_admin toggles feature flag → gateway refuses invocations →
 reviewer UI falls back to human-only (always functional). Platform scope:
