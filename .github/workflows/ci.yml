@@ -78,6 +78,13 @@ jobs:
           npm run seed:generate
           PGPASSWORD=cpf_ci psql -h localhost -U cpf -d cpf -v ON_ERROR_STOP=1 -f packages/db/seed/generated/seed.sql
 
+      - name: Integration tests (full journeys, tenant isolation, audit chain, erasure, MFA)
+        env:
+          # Admin for provisioning; restricted cpf_api role for the app under test
+          DATABASE_ADMIN_URL: postgresql://cpf:cpf_ci@localhost:5432/cpf
+          DATABASE_URL: postgresql://cpf_api:cpf_local_dev@localhost:5432/cpf
+        run: npm test
+
       - name: Verify seed and tenant isolation defaults
         run: |
           PGPASSWORD=cpf_ci psql -h localhost -U cpf -d cpf -v ON_ERROR_STOP=1 -c "

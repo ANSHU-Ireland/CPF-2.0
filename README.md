@@ -4,11 +4,15 @@
 
 CPF (Candidate Performance Framework) evaluates *how people work with AI* on realistic, role-relevant work samples. Instead of an opaque score, CPF produces a human-finalised **Evidence Profile**: anchored criterion scores, per-dimension evidence bands, reviewer confidence, limitations, and interview follow-ups — every claim traceable to captured evidence.
 
-> **Honest status (2026-07-25):** this repository is the greenfield foundation
-> (Phase 0 → early Phase 1). The versioned assessment framework, transparent
-> scoring engine, lifecycle guardrails, database schema, and framework API are
-> implemented and tested. Identity, tenanted persistence flows, and all user
-> interfaces are **designed but not yet implemented**. See
+> **Honest status (2026-07-25):** this repository contains the greenfield
+> foundation and a fully integration-tested backend vertical slice: identity
+> (scrypt + TOTP MFA + lockout + activation), multi-tenant persistence with
+> forced row-level security under a restricted database role, the complete
+> hiring workflow (invitation → disclosure → session → evidence → review →
+> finalisation → evidence profile), data-rights workflows with legal holds and
+> verified erasure, and a hash-chained append-only audit log. **92 automated
+> tests, including 15 end-to-end scenarios against real PostgreSQL.** All user
+> interfaces are designed but not yet implemented. See
 > [docs/status/completion-report.md](docs/status/completion-report.md) for the
 > complete, category-by-category status. Nothing in this repository is claimed
 > to be legally compliant or production-deployed.
@@ -27,12 +31,14 @@ These guardrails are enforced in the domain engine, database constraints, and te
 ## Repository layout
 
 ```
-apps/api                       Fastify API (framework catalogue + stateless scoring evaluation)
+apps/api                       Fastify modular monolith — identity, tenancy, hiring, candidate portal,
+                               reviews, data rights (platform mode) + framework catalogue (always)
 packages/assessment-framework  Versioned framework data, scoring engine, state machines (60 tests)
-packages/db                    PostgreSQL migrations (RLS tenancy, append-only audit) + seed generator
+packages/identity              scrypt passwords, opaque tokens, RFC 6238 TOTP (17 tests)
+packages/db                    PostgreSQL migrations (forced RLS tenancy, append-only audit, app role)
 tools/source-import            Reproducible workbook → framework JSON pipeline (Python)
 docs/                          Discovery, product, architecture, compliance, security, agile, investor
-.github/                       CI (typecheck, tests, audit, migration validation on real PostgreSQL)
+.github/                       CI: typecheck, tests, audit + migrations & 15 integration scenarios on real PostgreSQL
 ```
 
 ## The assessment framework (v0.1.0)
@@ -52,9 +58,27 @@ Prerequisites: Node 22 (`nvm use`), npm 10+. PostgreSQL via Docker optional.
 ```bash
 npm install
 npm run typecheck        # strict TS across all workspaces
-npm test                 # 68 tests: framework data, scoring engine, state machines, API
-npm run api:dev          # API at http://127.0.0.1:4000
+npm test                 # 92 tests (integration scenarios need DATABASE_URL + DATABASE_ADMIN_URL)
+npm run api:dev          # framework-only mode at http://127.0.0.1:4000
 ```
+
+Full platform mode (identity, tenancy, hiring, reviews, data rights):
+
+```bash
+docker compose up -d     # PostgreSQL 16 + Mailpit; migrations + cpf_api role auto-apply
+npm run seed:generate
+docker compose exec -T postgres psql -U cpf -d cpf < packages/db/seed/generated/seed.sql
+npm run build
+# one-time platform administrator (choose your own credentials):
+BOOTSTRAP_EMAIL=you@example.eu BOOTSTRAP_PASSWORD='a-long-password' \
+DATABASE_URL=postgresql://cpf_api:cpf_local_dev@localhost:5432/cpf \
+  node apps/api/scripts/bootstrap.mjs
+DATABASE_URL=postgresql://cpf_api:cpf_local_dev@localhost:5432/cpf npm run api:dev
+```
+
+The API refuses production start without `DATABASE_URL`, and the database
+role is a non-superuser member of `cpf_app` — row-level security is enforced
+even against the application itself.
 
 Try it:
 

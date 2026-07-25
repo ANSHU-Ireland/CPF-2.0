@@ -12,11 +12,11 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "npm run build -w @cpf/assessment-framework && npm run build -w @cpf/api",
-    "test": "npm run build -w @cpf/assessment-framework && npm run test --workspaces --if-present",
-    "typecheck": "npm run build -w @cpf/assessment-framework && npm run typecheck --workspaces --if-present",
+    "build": "npm run build -w @cpf/assessment-framework -w @cpf/identity && npm run build -w @cpf/api",
+    "test": "npm run build -w @cpf/assessment-framework -w @cpf/identity && npm run test --workspaces --if-present",
+    "typecheck": "npm run build -w @cpf/assessment-framework -w @cpf/identity && npm run typecheck --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "seed:generate": "node packages/db/scripts/generate-seed.mjs",
-    "api:dev": "npm run build -w @cpf/assessment-framework && npm run dev --workspace @cpf/api"
+    "api:dev": "npm run build -w @cpf/assessment-framework -w @cpf/identity && npm run dev --workspace @cpf/api"
   }
 }

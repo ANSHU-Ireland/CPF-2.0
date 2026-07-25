@@ -10,8 +10,20 @@ import {
 } from "@cpf/assessment-framework";
 import Fastify, { type FastifyError, type FastifyInstance } from "fastify";
 import { randomUUID } from "node:crypto";
+import { createPool } from "./db/pool.js";
+import { registerAuthRoutes } from "./modules/auth/routes.js";
+import { registerCandidatePortalRoutes } from "./modules/candidate/portal.js";
+import { registerDataRightsRoutes } from "./modules/org/data-rights.js";
+import { registerHiringRoutes } from "./modules/org/hiring.js";
+import { registerReviewRoutes } from "./modules/org/reviews.js";
+import { registerPlatformRoutes } from "./modules/platform/routes.js";
 
 const API_VERSION = "0.1.0";
+
+export interface BuildAppOptions {
+  /** Enables full platform mode (identity, tenancy, hiring, reviews, data rights). */
+  databaseUrl?: string;
+}
 
 /**
  * Build the CPF API instance.
@@ -23,7 +35,9 @@ const API_VERSION = "0.1.0";
  * deliberately absent until the identity and tenancy modules are implemented —
  * see docs/status/completion-report.md.
  */
-export function buildApp(): FastifyInstance {
+export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
+  const platformMode = Boolean(options.databaseUrl);
+  if (options.databaseUrl) createPool(options.databaseUrl);
   const app = Fastify({
     logger: {
       level: process.env.NODE_ENV === "test" ? "silent" : "info",
@@ -79,6 +93,7 @@ export function buildApp(): FastifyInstance {
     status: "ok",
     service: "cpf-api",
     version: API_VERSION,
+    mode: platformMode ? "platform" : "framework-only",
     time: new Date().toISOString(),
   }));
 
@@ -155,6 +170,19 @@ export function buildApp(): FastifyInstance {
       parsed.data.assessments,
     );
   });
+
+  if (platformMode) {
+    registerAuthRoutes(app);
+    registerPlatformRoutes(app);
+    registerHiringRoutes(app);
+    registerCandidatePortalRoutes(app);
+    registerReviewRoutes(app);
+    registerDataRightsRoutes(app);
+  } else {
+    app.log.info(
+      "DATABASE_URL not configured — running in framework-only mode (non-personal catalogue + stateless evaluation). Platform endpoints are disabled.",
+    );
+  }
 
   return app;
 }

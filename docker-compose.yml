@@ -12,6 +12,7 @@ services:
     volumes:
       - cpf-pgdata:/var/lib/postgresql/data
       - ./packages/db/migrations:/docker-entrypoint-initdb.d:ro
+      - ./packages/db/local-dev/zz-local-dev-role.sql:/docker-entrypoint-initdb.d/zz-local-dev-role.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U cpf -d cpf"]
       interval: 5s

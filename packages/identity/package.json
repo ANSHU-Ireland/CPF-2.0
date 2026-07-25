@@ -1,0 +1,26 @@
+{
+  "name": "@cpf/identity",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "CPF identity primitives: scrypt password hashing (OWASP parameters), opaque session tokens hashed at rest, RFC 6238 TOTP. Pure Node crypto — no native or third-party dependencies.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.10"
+  }
+}

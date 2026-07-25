@@ -13,6 +13,9 @@ dist/
 # Local extraction workspace (source documents are not committed)
 .tmp-extract/
 
+# Throwaway local PostgreSQL instance for integration testing
+.tmp-pg/
+
 # Test & coverage output
 coverage/
 .vitest/
