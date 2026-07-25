@@ -1,0 +1,30 @@
+{
+  "name": "@cpf/assessment-framework",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "CPF assessment framework: versioned scoring model data, transparent evidence-index scoring engine, and lifecycle state machines. No automated hiring outcome is ever produced.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "data"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.10"
+  }
+}

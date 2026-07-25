@@ -1,0 +1,214 @@
+{
+  "code": "SE5",
+  "roleFamily": "software-engineering",
+  "title": "Software Engineer 5 - Review and Harden an AI Generated Pull Request",
+  "subtitle": "Calibrated scepticism, code review and release recommendation",
+  "purpose": "Assess the behaviour CPF is designed to observe directly: whether an engineer can verify, correct and responsibly release plausible AI generated work.",
+  "customerUse": "Best for any customer where engineers use coding assistants and must remain accountable for code quality, security and release decisions.",
+  "targetLevel": "Client ready junior to mid level software engineer. Can be adapted upward by increasing system complexity and review ownership.",
+  "timebox": "90 minutes plus a 25 minute evidence interview.",
+  "simulation": "Review a pull request generated with an AI coding assistant. It appears complete and passes basic tests, but contains subtle authorisation, concurrency, error handling and observability defects.",
+  "sourcePack": "Pull request diff, original prompt transcript, repository slice, issue brief, CI output, threat notes, service contract, quality standards and release calendar.",
+  "approvedTools": "Approved AI assistant, local IDE assistant, terminal, test runner and provided documentation. No public internet or unapproved packages unless the brief explicitly permits them.",
+  "deliverables": "Structured review, risk classification, corrected patch, added tests, explanation of AI failure modes, release recommendation, follow up questions and complete evidence record.",
+  "constraints": "Do not assume passing CI means safe; avoid rewriting the entire change; distinguish blocking from non blocking comments; no release decision without evidence.",
+  "evidenceRecord": "Capture prompts, material AI outputs, source references, tool actions, corrections, decisions, tests or calculations, final deliverables and a short note explaining where AI was not trusted.",
+  "stages": [
+    {
+      "stage": "1. Orient | 10 min",
+      "durationMinutes": null,
+      "candidateAction": "Restate intended behaviour, identify system boundaries and define the review plan.",
+      "evidenceCaptured": "Review scope, risks and acceptance map."
+    },
+    {
+      "stage": "2. Inspect | 25 min",
+      "durationMinutes": null,
+      "candidateAction": "Trace changed paths, contracts, permissions, concurrency and failure behaviour.",
+      "evidenceCaptured": "Annotated diff and evidence references."
+    },
+    {
+      "stage": "3. Challenge | 20 min",
+      "durationMinutes": null,
+      "candidateAction": "Create tests or checks that attempt to disprove the pull request's apparent correctness.",
+      "evidenceCaptured": "Adversarial tests and discovered defects."
+    },
+    {
+      "stage": "4. Correct | 20 min",
+      "durationMinutes": null,
+      "candidateAction": "Fix blocking defects narrowly and validate the corrected behaviour.",
+      "evidenceCaptured": "Patch, tests and correction rationale."
+    },
+    {
+      "stage": "5. Decide | 15 min",
+      "durationMinutes": null,
+      "candidateAction": "Classify remaining issues and make a conditional release recommendation with owners.",
+      "evidenceCaptured": "Review summary, confidence and escalation."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "SE5-01",
+      "dimension": "Decomposition",
+      "weight": 0.05,
+      "critical": false,
+      "observableStandard": "Structures review around intended behaviour, data and auth boundaries, failure modes, tests and release impact rather than reading linearly only.",
+      "evidenceAndRedFlag": "Evidence: risk based review plan. Red flag: focuses mainly on style and naming.",
+      "interviewProbe": "Which review area has the highest expected customer harm?"
+    },
+    {
+      "id": "SE5-02",
+      "dimension": "Decomposition",
+      "weight": 0.05,
+      "critical": false,
+      "observableStandard": "Separates blocking correctness or security defects from maintainability suggestions and optional polish.",
+      "evidenceAndRedFlag": "Evidence: severity classification. Red flag: all comments have equal weight or blockers are buried.",
+      "interviewProbe": "Which comment alone should prevent merge?"
+    },
+    {
+      "id": "SE5-03",
+      "dimension": "Context",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Uses the issue, contracts, repository patterns, threat notes and release context to judge the pull request.",
+      "evidenceAndRedFlag": "Evidence: concrete references beyond the diff. Red flag: review is generic or based on personal taste.",
+      "interviewProbe": "Which external contract makes one line in the diff unsafe?"
+    },
+    {
+      "id": "SE5-04",
+      "dimension": "Context",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Reconstructs what the generating model knew and did not know and identifies prompt induced blind spots without excusing the author.",
+      "evidenceAndRedFlag": "Evidence: prompt to defect analysis. Red flag: attributes every defect to AI without examining missing context.",
+      "interviewProbe": "What important context was absent from the generation prompt?"
+    },
+    {
+      "id": "SE5-05",
+      "dimension": "Tool Choice",
+      "weight": 0.08,
+      "critical": false,
+      "observableStandard": "Uses code navigation, tests, static analysis and controlled execution to verify the diff; uses further AI for critique only with independent checks.",
+      "evidenceAndRedFlag": "Evidence: complementary tool use. Red flag: asks another model whether the first model is correct and stops there.",
+      "interviewProbe": "Which non AI check had the highest evidential value?"
+    },
+    {
+      "id": "SE5-06",
+      "dimension": "Verification",
+      "weight": 0.07,
+      "critical": true,
+      "observableStandard": "Creates adversarial tests for authorisation, concurrency, invalid input and downstream failure that expose hidden defects.",
+      "evidenceAndRedFlag": "Evidence: failing test before correction. Red flag: reruns only supplied happy path CI.",
+      "interviewProbe": "Which new test disproved the strongest assumption in the pull request?"
+    },
+    {
+      "id": "SE5-07",
+      "dimension": "Verification",
+      "weight": 0.07,
+      "critical": true,
+      "observableStandard": "Traces material claims in the pull request description and generated comments back to actual code and contracts.",
+      "evidenceAndRedFlag": "Evidence: claim by claim check. Red flag: accepts generated explanation that does not match runtime behaviour.",
+      "interviewProbe": "Identify one accurate sounding statement that was false or incomplete."
+    },
+    {
+      "id": "SE5-08",
+      "dimension": "Correction",
+      "weight": 0.1,
+      "critical": false,
+      "observableStandard": "Corrects both code defects and the underlying prompt, checklist or generation boundary that allowed the defect.",
+      "evidenceAndRedFlag": "Evidence: patch plus process improvement. Red flag: patch only, with the same unsafe generation process retained.",
+      "interviewProbe": "How would you change the next generation attempt?"
+    },
+    {
+      "id": "SE5-09",
+      "dimension": "Judgment",
+      "weight": 0.06,
+      "critical": false,
+      "observableStandard": "Makes proportional review decisions, avoids unnecessary rewrite and explains risk, likelihood, reversibility and customer impact.",
+      "evidenceAndRedFlag": "Evidence: clear severity logic. Red flag: blocks for preference or approves consequential uncertainty.",
+      "interviewProbe": "Why is one issue blocking while another is follow up work?"
+    },
+    {
+      "id": "SE5-10",
+      "dimension": "Judgment",
+      "weight": 0.06,
+      "critical": false,
+      "observableStandard": "Calibrates confidence and states what cannot be known from the supplied repository slice or test environment.",
+      "evidenceAndRedFlag": "Evidence: explicit limitations. Red flag: full release confidence from incomplete evidence.",
+      "interviewProbe": "What evidence is still missing for production approval?"
+    },
+    {
+      "id": "SE5-11",
+      "dimension": "Escalation",
+      "weight": 0.08,
+      "critical": true,
+      "observableStandard": "Escalates security, contract, data migration or ownership questions to the right reviewer with a precise ask.",
+      "evidenceAndRedFlag": "Evidence: named expertise and question. Red flag: self approves outside role authority.",
+      "interviewProbe": "Which specialist review is required and what should they examine?"
+    },
+    {
+      "id": "SE5-12",
+      "dimension": "Domain Execution",
+      "weight": 0.046667,
+      "critical": false,
+      "observableStandard": "Produces specific, respectful and actionable review comments with file or behaviour references and proposed direction.",
+      "evidenceAndRedFlag": "Evidence: review comments a developer can act on. Red flag: vague unsafe or bad code labels.",
+      "interviewProbe": "Rewrite your most important comment for maximum actionability."
+    },
+    {
+      "id": "SE5-13",
+      "dimension": "Domain Execution",
+      "weight": 0.046667,
+      "critical": true,
+      "observableStandard": "Corrects the blocking defects with minimal coherent changes and preserves intended behaviour.",
+      "evidenceAndRedFlag": "Evidence: patch and passing adversarial tests. Red flag: masks failure or changes requirement to fit the code.",
+      "interviewProbe": "How do you know your correction did not create a new behaviour change?"
+    },
+    {
+      "id": "SE5-14",
+      "dimension": "Domain Execution",
+      "weight": 0.046667,
+      "critical": false,
+      "observableStandard": "Provides a clear merge, conditional merge or reject recommendation tied to evidence and release controls.",
+      "evidenceAndRedFlag": "Evidence: decision matrix and conditions. Red flag: recommendation is only a score or intuition.",
+      "interviewProbe": "What exact condition changes your recommendation?"
+    },
+    {
+      "id": "SE5-15",
+      "dimension": "Client Readiness",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Communicates findings without blaming the author or overselling AI risk and helps the team improve its workflow.",
+      "evidenceAndRedFlag": "Evidence: constructive review tone. Red flag: dismissive AI slop language or personal judgement.",
+      "interviewProbe": "How would you deliver this feedback in a team review?"
+    },
+    {
+      "id": "SE5-16",
+      "dimension": "Client Readiness",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Leaves a reusable checklist or test pattern that improves future AI assisted pull requests.",
+      "evidenceAndRedFlag": "Evidence: practical team control. Red flag: one off hero review with no learning transfer.",
+      "interviewProbe": "Which control should become part of the pull request template?"
+    },
+    {
+      "id": "SE5-17",
+      "dimension": "Trust & Safety",
+      "weight": 0.04,
+      "critical": true,
+      "observableStandard": "Detects and blocks authorisation, secret, personal data or unsafe dependency risks in generated code and prompts.",
+      "evidenceAndRedFlag": "Evidence: security findings and safe evidence handling. Red flag: sensitive repository data sent to an unapproved model.",
+      "interviewProbe": "Which AI usage boundary was most relevant here?"
+    },
+    {
+      "id": "SE5-18",
+      "dimension": "Trust & Safety",
+      "weight": 0.04,
+      "critical": true,
+      "observableStandard": "Preserves auditability by linking findings, corrections and release decision to versioned evidence.",
+      "evidenceAndRedFlag": "Evidence: traceable review record. Red flag: important correction occurs outside the recorded workflow.",
+      "interviewProbe": "Can another reviewer reconstruct why this was approved or blocked?"
+    }
+  ],
+  "reviewerInstruction": "score only observable evidence from the versioned work sample and interview. Record what is missing. Do not infer motivation, personality, emotion, disability, protected characteristics or future performance beyond the validated role and criterion evidence.",
+  "frameworkVersion": "0.1.0"
+}

@@ -1,0 +1,214 @@
+{
+  "code": "DM1",
+  "roleFamily": "digital-marketing",
+  "title": "Digital Marketer 1 - Paid Acquisition Diagnosis and Recovery",
+  "subtitle": "Commercial analysis, tracking integrity and controlled experimentation",
+  "purpose": "Assess whether a marketer can diagnose deteriorating paid performance, separate signal from platform narrative and propose a commercially responsible recovery plan.",
+  "customerUse": "Best for customers hiring performance marketers who will manage budget, agencies, tracking and lead quality across paid channels.",
+  "targetLevel": "Client ready junior to mid level performance marketer with approval limits for live budget or campaign changes.",
+  "timebox": "120 minutes plus a 25 minute evidence interview.",
+  "simulation": "Paid media spend increased 25 percent while qualified leads fell 35 percent after creative, bidding and tracking changes. Platform reported conversions remain stable.",
+  "sourcePack": "Google and Meta exports, CRM lead outcomes, GA4 events, change log, landing pages, creative set, audience definitions, budget limits, sales feedback and tracking specification.",
+  "approvedTools": "Approved AI assistant, spreadsheet or notebook, provided analytics exports, creative workspace and supplied research pack. No live ad publishing, customer contact or unsupported external claims.",
+  "deliverables": "Diagnostic tree, reconciled funnel, data quality findings, budget protection action, channel and campaign recommendations, experiment backlog, 30 day measurement plan and stakeholder memo.",
+  "constraints": "Do not publish changes; distinguish platform conversions from qualified revenue outcomes; state attribution uncertainty; preserve brand and consent requirements.",
+  "evidenceRecord": "Capture prompts, material AI outputs, source references, tool actions, corrections, decisions, tests or calculations, final deliverables and a short note explaining where AI was not trusted.",
+  "stages": [
+    {
+      "stage": "1. Frame | 15 min",
+      "durationMinutes": null,
+      "candidateAction": "Define the commercial objective, decision horizon, guardrails and key ambiguities.",
+      "evidenceCaptured": "Success metric hierarchy and questions."
+    },
+    {
+      "stage": "2. Reconcile | 30 min",
+      "durationMinutes": null,
+      "candidateAction": "Map spend to clicks, landing behaviour, tracked conversions, qualified leads and revenue.",
+      "evidenceCaptured": "Funnel reconciliation and data quality evidence."
+    },
+    {
+      "stage": "3. Diagnose | 25 min",
+      "durationMinutes": null,
+      "candidateAction": "Rank tracking, mix, audience, creative, landing and sales follow up hypotheses.",
+      "evidenceCaptured": "Evidence by hypothesis and confidence."
+    },
+    {
+      "stage": "4. Act | 30 min",
+      "durationMinutes": null,
+      "candidateAction": "Protect budget and design controlled changes with expected outcome and stopping rules.",
+      "evidenceCaptured": "Budget plan, experiments and forecast assumptions."
+    },
+    {
+      "stage": "5. Communicate | 20 min",
+      "durationMinutes": null,
+      "candidateAction": "Explain findings, uncertainty and next decisions to marketing and finance stakeholders.",
+      "evidenceCaptured": "Decision memo and dashboard specification."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "DM1-01",
+      "dimension": "Decomposition",
+      "weight": 0.05,
+      "critical": false,
+      "observableStandard": "Breaks deterioration into tracking, traffic quality, audience, creative, landing experience, sales qualification and attribution workstreams.",
+      "evidenceAndRedFlag": "Evidence: hypothesis tree tied to funnel stages. Red flag: jumps directly to new creative or more budget.",
+      "interviewProbe": "Which branch should be investigated first and why?"
+    },
+    {
+      "id": "DM1-02",
+      "dimension": "Decomposition",
+      "weight": 0.05,
+      "critical": false,
+      "observableStandard": "Sequences immediate budget protection, diagnostic work, controlled tests and scale decisions with owners and time horizons.",
+      "evidenceAndRedFlag": "Evidence: staged recovery plan. Red flag: multiple simultaneous changes prevent learning.",
+      "interviewProbe": "What is your first reversible action?"
+    },
+    {
+      "id": "DM1-03",
+      "dimension": "Context",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Uses business margin, lead definition, sales capacity, brand, geography, seasonality and campaign change history to interpret performance.",
+      "evidenceAndRedFlag": "Evidence: context cited in decisions. Red flag: optimises platform CPA without qualified lead or revenue context.",
+      "interviewProbe": "Which business constraint changes the apparent best channel?"
+    },
+    {
+      "id": "DM1-04",
+      "dimension": "Context",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Identifies missing definitions, broken joins, attribution windows and changes in CRM handling that could invalidate comparisons.",
+      "evidenceAndRedFlag": "Evidence: data caveats and clarification requests. Red flag: combines incomparable platform metrics.",
+      "interviewProbe": "Which missing definition creates the largest decision risk?"
+    },
+    {
+      "id": "DM1-05",
+      "dimension": "Tool Choice",
+      "weight": 0.08,
+      "critical": false,
+      "observableStandard": "Uses spreadsheet or analysis tooling for reconciliation and AI for bounded pattern finding or drafting; checks every material calculation and claim.",
+      "evidenceAndRedFlag": "Evidence: transparent calculations and verified AI use. Red flag: opaque AI generated diagnosis with no traceable numbers.",
+      "interviewProbe": "Show one calculation you independently checked."
+    },
+    {
+      "id": "DM1-06",
+      "dimension": "Verification",
+      "weight": 0.07,
+      "critical": true,
+      "observableStandard": "Reconciles platform, analytics and CRM outcomes and verifies spend, dates, currency, deduplication and funnel definitions.",
+      "evidenceAndRedFlag": "Evidence: auditable funnel with exceptions. Red flag: reports ROAS or CPA from mismatched periods or duplicated conversions.",
+      "interviewProbe": "Where do the systems disagree and how did you resolve it?"
+    },
+    {
+      "id": "DM1-07",
+      "dimension": "Verification",
+      "weight": 0.07,
+      "critical": true,
+      "observableStandard": "Tests whether observed performance shifts are robust to mix, lag, sample size and attribution assumptions.",
+      "evidenceAndRedFlag": "Evidence: sensitivity or segmented comparison. Red flag: treats a short term fluctuation as causal proof.",
+      "interviewProbe": "How sensitive is your recommendation to conversion lag?"
+    },
+    {
+      "id": "DM1-08",
+      "dimension": "Correction",
+      "weight": 0.1,
+      "critical": false,
+      "observableStandard": "Corrects calculations, hypotheses or budget recommendations when reconciled CRM evidence contradicts platform reporting.",
+      "evidenceAndRedFlag": "Evidence: before and after recommendation. Red flag: keeps the original story and selectively ignores conflicting data.",
+      "interviewProbe": "Which recommendation changed after you inspected qualified outcomes?"
+    },
+    {
+      "id": "DM1-09",
+      "dimension": "Judgment",
+      "weight": 0.06,
+      "critical": false,
+      "observableStandard": "Balances learning, cash protection, channel concentration, sales capacity and statistical confidence in budget decisions.",
+      "evidenceAndRedFlag": "Evidence: decision rationale and downside. Red flag: pauses all activity or scales a weak signal without trade off analysis.",
+      "interviewProbe": "How much budget are you willing to risk to learn this?"
+    },
+    {
+      "id": "DM1-10",
+      "dimension": "Judgment",
+      "weight": 0.06,
+      "critical": false,
+      "observableStandard": "Distinguishes correlation from causation and ranks actions by expected value, reversibility and evidence quality.",
+      "evidenceAndRedFlag": "Evidence: prioritised action matrix. Red flag: attributes decline to the latest visible change without testing alternatives.",
+      "interviewProbe": "What evidence would change your causal interpretation?"
+    },
+    {
+      "id": "DM1-11",
+      "dimension": "Escalation",
+      "weight": 0.08,
+      "critical": true,
+      "observableStandard": "Escalates material tracking failure, overspend, consent issue, brand risk or sales process breakdown with containment and a clear ask.",
+      "evidenceAndRedFlag": "Evidence: trigger, owner and recommended action. Red flag: continues spend while core conversion measurement is unreliable.",
+      "interviewProbe": "Draft the escalation if primary conversion tracking is overstating outcomes."
+    },
+    {
+      "id": "DM1-12",
+      "dimension": "Domain Execution",
+      "weight": 0.046667,
+      "critical": false,
+      "observableStandard": "Calculates and interprets CTR, CPC, CVR, CPL, qualified CPL, CAC and ROAS using correct denominators and stated windows.",
+      "evidenceAndRedFlag": "Evidence: auditable metrics. Red flag: vanity metrics substitute for commercial performance.",
+      "interviewProbe": "Which metric should control the next budget decision?"
+    },
+    {
+      "id": "DM1-13",
+      "dimension": "Domain Execution",
+      "weight": 0.046667,
+      "critical": true,
+      "observableStandard": "Produces a coherent channel and campaign recovery plan tied to qualified demand, budget limits and measurable hypotheses.",
+      "evidenceAndRedFlag": "Evidence: specific changes, expected direction and guardrails. Red flag: generic optimise targeting and creative advice.",
+      "interviewProbe": "What exact change would you launch first after approval?"
+    },
+    {
+      "id": "DM1-14",
+      "dimension": "Domain Execution",
+      "weight": 0.046667,
+      "critical": false,
+      "observableStandard": "Defines experiments with one primary variable, decision metric, minimum run condition, stopping rule and learning capture.",
+      "evidenceAndRedFlag": "Evidence: test cards. Red flag: test has no control or success criterion.",
+      "interviewProbe": "When would you stop the experiment early?"
+    },
+    {
+      "id": "DM1-15",
+      "dimension": "Client Readiness",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Explains commercial impact, data limitations and recommended actions clearly to marketing, sales and finance.",
+      "evidenceAndRedFlag": "Evidence: concise stakeholder memo. Red flag: platform jargon or false precision.",
+      "interviewProbe": "Give the finance lead your 90 second summary."
+    },
+    {
+      "id": "DM1-16",
+      "dimension": "Client Readiness",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Takes ownership of the measurement and operating cadence, with named owners, review dates and required approvals.",
+      "evidenceAndRedFlag": "Evidence: operating plan. Red flag: recommendations have no execution owner or feedback loop.",
+      "interviewProbe": "Who does what in the next seven days?"
+    },
+    {
+      "id": "DM1-17",
+      "dimension": "Trust & Safety",
+      "weight": 0.04,
+      "critical": true,
+      "observableStandard": "Respects consent, audience policy, personal data minimisation and approved use of customer data in AI prompts.",
+      "evidenceAndRedFlag": "Evidence: safe segmentation and prompt handling. Red flag: sensitive CRM data uploaded to an unapproved assistant.",
+      "interviewProbe": "Which data should be aggregated or removed before AI analysis?"
+    },
+    {
+      "id": "DM1-18",
+      "dimension": "Trust & Safety",
+      "weight": 0.04,
+      "critical": true,
+      "observableStandard": "Avoids misleading claims, dark patterns and brand unsafe optimisation even where they might improve short term conversion.",
+      "evidenceAndRedFlag": "Evidence: brand and claims check. Red flag: recommends unsupported urgency or discriminatory targeting.",
+      "interviewProbe": "Which tempting optimisation would you refuse to run?"
+    }
+  ],
+  "reviewerInstruction": "score only observable evidence from the versioned work sample and interview. Record what is missing. Do not infer motivation, personality, emotion, disability, protected characteristics or future performance beyond the validated role and criterion evidence.",
+  "frameworkVersion": "0.1.0"
+}

@@ -1,0 +1,214 @@
+{
+  "code": "SE4",
+  "roleFamily": "software-engineering",
+  "title": "Software Engineer 4 - Legacy Performance and Refactoring",
+  "subtitle": "Measure first, preserve behaviour and improve safely",
+  "purpose": "Assess whether an engineer can improve a poorly documented service without confusing clean code with customer value or introducing regression risk.",
+  "customerUse": "Best for customers needing engineers who will inherit existing systems, reduce latency or cost and make contained maintainability improvements.",
+  "targetLevel": "Client ready junior to mid level engineer who can work in legacy systems with normal design review.",
+  "timebox": "120 minutes plus a 20 minute evidence interview.",
+  "simulation": "A reporting endpoint has a p95 latency of 4.8 seconds and intermittent timeouts. Customers need it below 2 seconds without changing report totals or the public contract.",
+  "sourcePack": "Legacy service, anonymised query plan, profiler sample, request traces, test fixtures, API contract, performance history, database constraints and deployment guide.",
+  "approvedTools": "Approved AI assistant, local IDE assistant, terminal, test runner and provided documentation. No public internet or unapproved packages unless the brief explicitly permits them.",
+  "deliverables": "Baseline, bottleneck analysis, ranked options, targeted code or query change, correctness and performance tests, architecture note, rollout and rollback plan, and AI evidence record.",
+  "constraints": "Preserve public behaviour and totals; no broad rewrite; no new infrastructure unless justified; compare performance on the supplied repeatable fixture.",
+  "evidenceRecord": "Capture prompts, material AI outputs, source references, tool actions, corrections, decisions, tests or calculations, final deliverables and a short note explaining where AI was not trusted.",
+  "stages": [
+    {
+      "stage": "1. Baseline | 20 min",
+      "durationMinutes": null,
+      "candidateAction": "Reproduce latency and correctness on a stable fixture and define success and guardrail metrics.",
+      "evidenceCaptured": "Baseline numbers, method and uncertainty."
+    },
+    {
+      "stage": "2. Diagnose | 25 min",
+      "durationMinutes": null,
+      "candidateAction": "Use code, traces and query evidence to isolate the dominant bottleneck.",
+      "evidenceCaptured": "Measured bottleneck and rejected hypotheses."
+    },
+    {
+      "stage": "3. Change | 35 min",
+      "durationMinutes": null,
+      "candidateAction": "Implement the smallest high impact improvement consistent with the existing contract.",
+      "evidenceCaptured": "Focused diff and decision rationale."
+    },
+    {
+      "stage": "4. Compare | 25 min",
+      "durationMinutes": null,
+      "candidateAction": "Run correctness and performance comparisons, including edge and representative data sizes.",
+      "evidenceCaptured": "Before and after evidence and corrections."
+    },
+    {
+      "stage": "5. Release | 15 min",
+      "durationMinutes": null,
+      "candidateAction": "Define staged rollout, observability, rollback and longer term debt items.",
+      "evidenceCaptured": "Release plan and bounded follow up."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "SE4-01",
+      "dimension": "Decomposition",
+      "weight": 0.05,
+      "critical": false,
+      "observableStandard": "Separates reproducibility, measurement, bottleneck isolation, option selection, behaviour preservation and release control.",
+      "evidenceAndRedFlag": "Evidence: sequenced performance plan. Red flag: refactor begins before a baseline exists.",
+      "interviewProbe": "Which step prevents a misleading improvement claim?"
+    },
+    {
+      "id": "SE4-02",
+      "dimension": "Decomposition",
+      "weight": 0.05,
+      "critical": false,
+      "observableStandard": "Defines a contained improvement target and separates immediate latency work from unrelated technical debt.",
+      "evidenceAndRedFlag": "Evidence: scoped backlog and deferred debt. Red flag: legacy rewrite framed as the only professional solution.",
+      "interviewProbe": "Which debt item should not be included in this change?"
+    },
+    {
+      "id": "SE4-03",
+      "dimension": "Context",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Understands the public contract, report semantics, data shape, existing tests and deployment limitations before optimising.",
+      "evidenceAndRedFlag": "Evidence: cited constraints. Red flag: changes totals, ordering or fields to achieve speed.",
+      "interviewProbe": "Which behaviour is easy to change accidentally?"
+    },
+    {
+      "id": "SE4-04",
+      "dimension": "Context",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Identifies whether latency is CPU, I/O, query, serialisation, network or contention driven using supplied evidence.",
+      "evidenceAndRedFlag": "Evidence: context specific bottleneck model. Red flag: generic caching recommendation without workload analysis.",
+      "interviewProbe": "What evidence most strongly localises the bottleneck?"
+    },
+    {
+      "id": "SE4-05",
+      "dimension": "Tool Choice",
+      "weight": 0.08,
+      "critical": false,
+      "observableStandard": "Uses profiler, query plan, benchmark and tests as primary evidence; uses AI to explain or generate options that are independently checked.",
+      "evidenceAndRedFlag": "Evidence: tool outputs and rationale. Red flag: micro benchmark or AI claim substituted for representative measurement.",
+      "interviewProbe": "Why is your benchmark representative of customer use?"
+    },
+    {
+      "id": "SE4-06",
+      "dimension": "Verification",
+      "weight": 0.07,
+      "critical": true,
+      "observableStandard": "Compares identical fixtures and reports distribution, repeat runs and guardrails rather than a single best timing.",
+      "evidenceAndRedFlag": "Evidence: repeatable before and after measures. Red flag: one local run or changed dataset.",
+      "interviewProbe": "How confident are you that the measured gain is real?"
+    },
+    {
+      "id": "SE4-07",
+      "dimension": "Verification",
+      "weight": 0.07,
+      "critical": true,
+      "observableStandard": "Proves report totals, filters, permissions, ordering and error behaviour remain correct across edge cases.",
+      "evidenceAndRedFlag": "Evidence: regression and property checks. Red flag: performance passes while semantic accuracy is untested.",
+      "interviewProbe": "Which correctness check protects the most customer value?"
+    },
+    {
+      "id": "SE4-08",
+      "dimension": "Correction",
+      "weight": 0.1,
+      "critical": false,
+      "observableStandard": "Revises the chosen optimisation when measurement shows limited gain or regression and explains the corrected mental model.",
+      "evidenceAndRedFlag": "Evidence: discarded option or adjusted change. Red flag: cherry picks measurement to defend the first solution.",
+      "interviewProbe": "Which result forced you to change direction?"
+    },
+    {
+      "id": "SE4-09",
+      "dimension": "Judgment",
+      "weight": 0.06,
+      "critical": false,
+      "observableStandard": "Balances speed, memory, database load, cache staleness, complexity and maintainability with explicit customer impact.",
+      "evidenceAndRedFlag": "Evidence: trade off matrix. Red flag: transfers cost or risk to another component without acknowledgement.",
+      "interviewProbe": "Where did the performance cost move after your change?"
+    },
+    {
+      "id": "SE4-10",
+      "dimension": "Judgment",
+      "weight": 0.06,
+      "critical": false,
+      "observableStandard": "Chooses a change proportionate to evidence and defines when a deeper redesign would become justified.",
+      "evidenceAndRedFlag": "Evidence: threshold for future action. Red flag: permanent complexity for a hypothetical scale problem.",
+      "interviewProbe": "What future signal would justify a larger redesign?"
+    },
+    {
+      "id": "SE4-11",
+      "dimension": "Escalation",
+      "weight": 0.08,
+      "critical": true,
+      "observableStandard": "Escalates uncertain data semantics, unsafe schema changes, capacity risk or misleading benchmark limitations before release.",
+      "evidenceAndRedFlag": "Evidence: clear trigger and review owner. Red flag: silently changes database or contract assumptions.",
+      "interviewProbe": "Which decision needs database or product owner review?"
+    },
+    {
+      "id": "SE4-12",
+      "dimension": "Domain Execution",
+      "weight": 0.046667,
+      "critical": false,
+      "observableStandard": "Produces a focused, readable change that follows existing conventions and reduces rather than spreads complexity.",
+      "evidenceAndRedFlag": "Evidence: limited coherent diff. Red flag: broad formatting or unrelated edits obscure the real change.",
+      "interviewProbe": "How would you make this diff easy to review?"
+    },
+    {
+      "id": "SE4-13",
+      "dimension": "Domain Execution",
+      "weight": 0.046667,
+      "critical": true,
+      "observableStandard": "Achieves a material performance improvement against the defined target without correctness regression.",
+      "evidenceAndRedFlag": "Evidence: measured target and guardrails. Red flag: claimed gain is outside the supplied method or target remains unmet without disclosure.",
+      "interviewProbe": "State the result, method and remaining limitation in one minute."
+    },
+    {
+      "id": "SE4-14",
+      "dimension": "Domain Execution",
+      "weight": 0.046667,
+      "critical": false,
+      "observableStandard": "Defines production metrics, alert thresholds, staged exposure and rollback that can confirm real world impact.",
+      "evidenceAndRedFlag": "Evidence: rollout checklist. Red flag: assumes local benchmark guarantees production result.",
+      "interviewProbe": "Which production metric validates the customer benefit?"
+    },
+    {
+      "id": "SE4-15",
+      "dimension": "Client Readiness",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Explains the bottleneck and change to technical and non technical stakeholders without exaggerating certainty.",
+      "evidenceAndRedFlag": "Evidence: concise change note. Red flag: jargon or unqualified percentage claim.",
+      "interviewProbe": "Explain why the endpoint was slow to a customer success manager."
+    },
+    {
+      "id": "SE4-16",
+      "dimension": "Client Readiness",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Documents benchmark method, operational implications and deferred debt so the team can reproduce and extend the work.",
+      "evidenceAndRedFlag": "Evidence: reproducible handover. Red flag: results depend on undocumented local setup.",
+      "interviewProbe": "What must a future engineer repeat before changing this again?"
+    },
+    {
+      "id": "SE4-17",
+      "dimension": "Trust & Safety",
+      "weight": 0.04,
+      "critical": true,
+      "observableStandard": "Uses anonymised data safely and prevents production or personal data from entering AI tools or benchmark artefacts.",
+      "evidenceAndRedFlag": "Evidence: safe fixture and prompt handling. Red flag: raw production sample used without authority.",
+      "interviewProbe": "How did you preserve realism without exposing customer data?"
+    },
+    {
+      "id": "SE4-18",
+      "dimension": "Trust & Safety",
+      "weight": 0.04,
+      "critical": true,
+      "observableStandard": "Avoids unsafe query, cache or schema changes and defines protections against load amplification or cross tenant effects.",
+      "evidenceAndRedFlag": "Evidence: load and isolation controls. Red flag: unbounded query, shared cache key or destructive migration.",
+      "interviewProbe": "What is the worst plausible operational side effect?"
+    }
+  ],
+  "reviewerInstruction": "score only observable evidence from the versioned work sample and interview. Record what is missing. Do not infer motivation, personality, emotion, disability, protected characteristics or future performance beyond the validated role and criterion evidence.",
+  "frameworkVersion": "0.1.0"
+}

@@ -1,0 +1,214 @@
+{
+  "code": "SE2",
+  "roleFamily": "software-engineering",
+  "title": "Software Engineer 2 - Incident Diagnosis and Recovery",
+  "subtitle": "Evidence led troubleshooting under time pressure",
+  "purpose": "Assess whether an engineer can stabilise a production problem, reason from incomplete evidence, correct the defect and communicate responsibly while AI produces plausible but uncertain hypotheses.",
+  "customerUse": "Best for customers needing engineers who will join on call rotations, maintain services and communicate calmly during operational problems.",
+  "targetLevel": "Client ready junior to mid level engineer with defined senior escalation. Not an incident commander assessment.",
+  "timebox": "90 minutes plus a 20 minute evidence interview. The clock may be paused for documented accommodations.",
+  "simulation": "A notification service began sending duplicate customer messages after a deployment. Error rate is normal, but complaint volume and queue lag are rising.",
+  "sourcePack": "Service code, deployment diff, logs, queue metrics, trace samples, runbook, architecture map, incident timeline, customer impact summary and prior post incident review.",
+  "approvedTools": "Approved AI assistant, local IDE assistant, terminal, test runner and provided documentation. No public internet or unapproved packages unless the brief explicitly permits them.",
+  "deliverables": "Impact statement, evidence timeline, ranked hypotheses, containment decision, reproducible cause, corrected patch, verification evidence, stakeholder update and post incident actions.",
+  "constraints": "Prioritise customer harm; do not mutate production; avoid speculative blame; preserve forensic evidence; distinguish containment from permanent correction.",
+  "evidenceRecord": "Capture prompts, material AI outputs, source references, tool actions, corrections, decisions, tests or calculations, final deliverables and a short note explaining where AI was not trusted.",
+  "stages": [
+    {
+      "stage": "1. Triage | 10 min",
+      "durationMinutes": null,
+      "candidateAction": "Define impact, urgency, known facts and immediate safe containment options.",
+      "evidenceCaptured": "Impact boundary, first actions and escalation decision."
+    },
+    {
+      "stage": "2. Investigate | 25 min",
+      "durationMinutes": null,
+      "candidateAction": "Build a timeline and test ranked hypotheses across deploy, queue and idempotency evidence.",
+      "evidenceCaptured": "Queries, observations, rejected hypotheses and confidence."
+    },
+    {
+      "stage": "3. Stabilise | 15 min",
+      "durationMinutes": null,
+      "candidateAction": "Choose and justify a reversible containment action.",
+      "evidenceCaptured": "Containment trade off, owner and monitoring signal."
+    },
+    {
+      "stage": "4. Correct | 25 min",
+      "durationMinutes": null,
+      "candidateAction": "Reproduce the defect, implement a narrow fix and verify duplicate protection and normal delivery.",
+      "evidenceCaptured": "Reproduction, patch, tests and correction trail."
+    },
+    {
+      "stage": "5. Communicate | 15 min",
+      "durationMinutes": null,
+      "candidateAction": "Provide an accurate customer and engineering update, then define follow up controls.",
+      "evidenceCaptured": "Status note, residual risk and prevention actions."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "SE2-01",
+      "dimension": "Decomposition",
+      "weight": 0.05,
+      "critical": false,
+      "observableStandard": "Separates impact assessment, containment, diagnosis, correction, validation and communication into a safe incident sequence.",
+      "evidenceAndRedFlag": "Evidence: ordered response plan. Red flag: jumps to code changes without protecting customers or evidence.",
+      "interviewProbe": "Why is your sequence safer than fixing the suspected commit immediately?"
+    },
+    {
+      "id": "SE2-02",
+      "dimension": "Decomposition",
+      "weight": 0.05,
+      "critical": false,
+      "observableStandard": "Breaks the system into deploy, producer, queue, consumer, idempotency and provider boundaries and identifies observable checks at each.",
+      "evidenceAndRedFlag": "Evidence: system hypothesis map. Red flag: one vague root cause theory dominates from the start.",
+      "interviewProbe": "Which boundary gives the highest information value first?"
+    },
+    {
+      "id": "SE2-03",
+      "dimension": "Context",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Uses the runbook, architecture, service ownership and recent change history to constrain investigation.",
+      "evidenceAndRedFlag": "Evidence: cited operational context. Red flag: generic debugging advice unrelated to the supplied system.",
+      "interviewProbe": "Which contextual fact most changed your initial hypothesis?"
+    },
+    {
+      "id": "SE2-04",
+      "dimension": "Context",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Quantifies affected customers, message types, duration and business consequences instead of relying on error rate alone.",
+      "evidenceAndRedFlag": "Evidence: bounded impact estimate. Red flag: declares low severity because infrastructure errors are normal.",
+      "interviewProbe": "What evidence would cause you to raise the severity?"
+    },
+    {
+      "id": "SE2-05",
+      "dimension": "Tool Choice",
+      "weight": 0.08,
+      "critical": false,
+      "observableStandard": "Chooses logs, traces, queue metrics, diff inspection and controlled reproduction appropriately; uses AI to generate hypotheses, not as incident evidence.",
+      "evidenceAndRedFlag": "Evidence: tool sequence and AI hypothesis validation. Red flag: cites AI explanation as proof.",
+      "interviewProbe": "Which tool ruled out the most plausible false lead?"
+    },
+    {
+      "id": "SE2-06",
+      "dimension": "Verification",
+      "weight": 0.07,
+      "critical": true,
+      "observableStandard": "Triangulates root cause across at least two independent evidence sources and reproduces the duplicate path.",
+      "evidenceAndRedFlag": "Evidence: trace or log plus controlled reproduction. Red flag: correlation with deployment treated as causation.",
+      "interviewProbe": "What evidence would falsify your root cause?"
+    },
+    {
+      "id": "SE2-07",
+      "dimension": "Verification",
+      "weight": 0.07,
+      "critical": true,
+      "observableStandard": "Validates containment and correction against duplicate suppression, queue recovery, normal delivery and regression risk.",
+      "evidenceAndRedFlag": "Evidence: before and after metrics and tests. Red flag: only the original example passes.",
+      "interviewProbe": "How would you detect a silent message loss introduced by the fix?"
+    },
+    {
+      "id": "SE2-08",
+      "dimension": "Correction",
+      "weight": 0.1,
+      "critical": false,
+      "observableStandard": "Updates the hypothesis when evidence conflicts, corrects the fix or method and preserves a clear investigation trail.",
+      "evidenceAndRedFlag": "Evidence: rejected hypothesis and reason. Red flag: retrofits evidence to the first AI generated theory.",
+      "interviewProbe": "Which belief changed most during the incident?"
+    },
+    {
+      "id": "SE2-09",
+      "dimension": "Judgment",
+      "weight": 0.06,
+      "critical": false,
+      "observableStandard": "Selects containment with an explicit balance between duplicate harm, delayed messages, reversibility and operational capacity.",
+      "evidenceAndRedFlag": "Evidence: option comparison. Red flag: aggressive destructive action without blast radius analysis.",
+      "interviewProbe": "Why is this containment proportionate to current impact?"
+    },
+    {
+      "id": "SE2-10",
+      "dimension": "Judgment",
+      "weight": 0.06,
+      "critical": false,
+      "observableStandard": "Keeps root cause confidence, unknowns and prevention actions distinct and avoids overstating certainty in stakeholder communication.",
+      "evidenceAndRedFlag": "Evidence: calibrated language and confidence. Red flag: definitive claim before reproduction.",
+      "interviewProbe": "What would you say if leadership asks for certainty you do not have?"
+    },
+    {
+      "id": "SE2-11",
+      "dimension": "Escalation",
+      "weight": 0.08,
+      "critical": true,
+      "observableStandard": "Escalates customer impact, provider involvement, data risk or unsafe remediation promptly with a specific ask and recommended action.",
+      "evidenceAndRedFlag": "Evidence: severity trigger, owner and message. Red flag: waits for complete diagnosis before raising material customer harm.",
+      "interviewProbe": "Who needs to know within the next ten minutes, and what do they need from you?"
+    },
+    {
+      "id": "SE2-12",
+      "dimension": "Domain Execution",
+      "weight": 0.046667,
+      "critical": false,
+      "observableStandard": "Builds a coherent incident timeline that distinguishes fact, inference and open question.",
+      "evidenceAndRedFlag": "Evidence: timestamped timeline. Red flag: chronology is missing or speculative statements are recorded as fact.",
+      "interviewProbe": "Which timeline event is causally important and which is merely adjacent?"
+    },
+    {
+      "id": "SE2-13",
+      "dimension": "Domain Execution",
+      "weight": 0.046667,
+      "critical": true,
+      "observableStandard": "Implements idempotent, race safe behaviour with appropriate retry and failure handling.",
+      "evidenceAndRedFlag": "Evidence: code and concurrency focused tests. Red flag: in memory flag or non atomic check used as duplicate protection.",
+      "interviewProbe": "How does the fix behave with concurrent redelivery?"
+    },
+    {
+      "id": "SE2-14",
+      "dimension": "Domain Execution",
+      "weight": 0.046667,
+      "critical": false,
+      "observableStandard": "Defines prevention work that addresses observability, tests, deployment control and process without using vague retraining actions.",
+      "evidenceAndRedFlag": "Evidence: prioritised actions with owners and signals. Red flag: only says be more careful.",
+      "interviewProbe": "Which prevention action gives the greatest risk reduction per unit effort?"
+    },
+    {
+      "id": "SE2-15",
+      "dimension": "Client Readiness",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Writes a calm, accurate update that states impact, current action, next update time and uncertainty without blame.",
+      "evidenceAndRedFlag": "Evidence: stakeholder message. Red flag: jargon, speculation or omitted customer impact.",
+      "interviewProbe": "Read your update as if speaking to the customer success lead."
+    },
+    {
+      "id": "SE2-16",
+      "dimension": "Client Readiness",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Owns follow through and produces a handover another engineer can continue without repeating the investigation.",
+      "evidenceAndRedFlag": "Evidence: handover with commands, findings and next checks. Red flag: crucial reasoning exists only in chat history.",
+      "interviewProbe": "What must the next engineer know if you leave now?"
+    },
+    {
+      "id": "SE2-17",
+      "dimension": "Trust & Safety",
+      "weight": 0.04,
+      "critical": true,
+      "observableStandard": "Protects customer message content, personal data, credentials and incident evidence in prompts and artefacts.",
+      "evidenceAndRedFlag": "Evidence: sanitised logs and safe prompt use. Red flag: raw customer content pasted into an external model.",
+      "interviewProbe": "How did you minimise sensitive data while retaining diagnostic value?"
+    },
+    {
+      "id": "SE2-18",
+      "dimension": "Trust & Safety",
+      "weight": 0.04,
+      "critical": true,
+      "observableStandard": "Avoids unsafe production mutations, preserves auditability and proposes controlled access for any necessary intervention.",
+      "evidenceAndRedFlag": "Evidence: reversible commands and approval path. Red flag: destructive queue or database action without backup and authority.",
+      "interviewProbe": "Which proposed command requires explicit approval before use?"
+    }
+  ],
+  "reviewerInstruction": "score only observable evidence from the versioned work sample and interview. Record what is missing. Do not infer motivation, personality, emotion, disability, protected characteristics or future performance beyond the validated role and criterion evidence.",
+  "frameworkVersion": "0.1.0"
+}

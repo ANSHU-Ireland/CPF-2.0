@@ -1,0 +1,214 @@
+{
+  "code": "SE3",
+  "roleFamily": "software-engineering",
+  "title": "Software Engineer 3 - Secure Third Party Integration",
+  "subtitle": "API design, privacy, resilience and operational ownership",
+  "purpose": "Assess whether an engineer can design and implement a reliable integration while balancing customer value, data protection, vendor limits and failure recovery.",
+  "customerUse": "Best for customers hiring backend, platform or implementation engineers who connect SaaS systems and handle customer data.",
+  "targetLevel": "Client ready junior to mid level backend or integration engineer with access to security review for high consequence decisions.",
+  "timebox": "120 minutes plus a 25 minute evidence interview.",
+  "simulation": "Sync approved customer contacts from the product to a CRM using OAuth, webhooks and a reconciliation job. The vendor API has rate limits and occasional duplicate events.",
+  "sourcePack": "API documentation extract, data dictionary, consent rules, tenant model, OAuth requirements, vendor incident history, rate limit table, architecture constraints and starter service.",
+  "approvedTools": "Approved AI assistant, local IDE assistant, terminal, test runner and provided documentation. No public internet or unapproved packages unless the brief explicitly permits them.",
+  "deliverables": "Clarification log, data flow and threat sketch, integration design, working core path, tests, failure and retry strategy, observability plan, runbook and AI evidence record.",
+  "constraints": "Data minimisation; tenant isolation; no long lived secrets in code; honour consent and deletion; respect rate limits; reconcile without duplicate writes.",
+  "evidenceRecord": "Capture prompts, material AI outputs, source references, tool actions, corrections, decisions, tests or calculations, final deliverables and a short note explaining where AI was not trusted.",
+  "stages": [
+    {
+      "stage": "1. Define | 20 min",
+      "durationMinutes": null,
+      "candidateAction": "Map the customer outcome, data fields, lawful or contractual boundaries and success criteria.",
+      "evidenceCaptured": "Data map, questions, assumptions and acceptance tests."
+    },
+    {
+      "stage": "2. Design | 25 min",
+      "durationMinutes": null,
+      "candidateAction": "Choose sync direction, identity mapping, auth, idempotency, retry and reconciliation patterns.",
+      "evidenceCaptured": "Architecture note and trade off record."
+    },
+    {
+      "stage": "3. Implement | 40 min",
+      "durationMinutes": null,
+      "candidateAction": "Build the bounded core path using supplied contracts and safe secret handling.",
+      "evidenceCaptured": "Code, AI trace and dependency choices."
+    },
+    {
+      "stage": "4. Stress | 20 min",
+      "durationMinutes": null,
+      "candidateAction": "Test rate limits, duplicate events, partial failure, expired auth and tenant separation.",
+      "evidenceCaptured": "Failure tests and recovery evidence."
+    },
+    {
+      "stage": "5. Operate | 15 min",
+      "durationMinutes": null,
+      "candidateAction": "Define monitoring, support ownership, deletion, rollback and vendor escalation.",
+      "evidenceCaptured": "Runbook, alerts and residual risks."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "SE3-01",
+      "dimension": "Decomposition",
+      "weight": 0.05,
+      "critical": false,
+      "observableStandard": "Breaks the integration into data contract, identity, authentication, sync, idempotency, reconciliation, deletion and operations.",
+      "evidenceAndRedFlag": "Evidence: component plan with dependencies. Red flag: treats integration as a single API call.",
+      "interviewProbe": "Which component must be proven before the rest is safe to build?"
+    },
+    {
+      "id": "SE3-02",
+      "dimension": "Decomposition",
+      "weight": 0.05,
+      "critical": false,
+      "observableStandard": "Defines staged delivery with a narrow pilot, test tenant and reversible activation rather than a big bang sync.",
+      "evidenceAndRedFlag": "Evidence: phased scope and acceptance gates. Red flag: full customer backfill is the first live action.",
+      "interviewProbe": "What is the smallest useful and safe first release?"
+    },
+    {
+      "id": "SE3-03",
+      "dimension": "Context",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Uses vendor contracts, internal tenant rules, field definitions and consent constraints to define the integration boundary.",
+      "evidenceAndRedFlag": "Evidence: referenced fields and rules. Red flag: assumes every available field should be synced.",
+      "interviewProbe": "Which supplied rule removes the most obvious implementation option?"
+    },
+    {
+      "id": "SE3-04",
+      "dimension": "Context",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Identifies ambiguous identity, deletion, source of truth and conflict rules and records what requires customer confirmation.",
+      "evidenceAndRedFlag": "Evidence: ambiguity register. Red flag: silent last write wins behaviour.",
+      "interviewProbe": "Who owns the source of truth for each critical field?"
+    },
+    {
+      "id": "SE3-05",
+      "dimension": "Tool Choice",
+      "weight": 0.08,
+      "critical": false,
+      "observableStandard": "Uses contract tests, schema validation, secret tooling and controlled mocks; checks AI generated API usage against supplied documentation.",
+      "evidenceAndRedFlag": "Evidence: tools tied to risk. Red flag: invented endpoint or parameter accepted because generated code compiles.",
+      "interviewProbe": "Show how you verified the vendor method signature."
+    },
+    {
+      "id": "SE3-06",
+      "dimension": "Verification",
+      "weight": 0.07,
+      "critical": true,
+      "observableStandard": "Tests normal sync, duplicate webhook, reordered events, rate limit, expired token, partial response and reconciliation.",
+      "evidenceAndRedFlag": "Evidence: explicit scenario tests. Red flag: one successful request is treated as integration proof.",
+      "interviewProbe": "Which failure test reveals the most expensive latent defect?"
+    },
+    {
+      "id": "SE3-07",
+      "dimension": "Verification",
+      "weight": 0.07,
+      "critical": true,
+      "observableStandard": "Verifies tenant isolation, field minimisation, deletion propagation and audit records using concrete evidence.",
+      "evidenceAndRedFlag": "Evidence: cross tenant negative test and data map check. Red flag: tenant identifier trusted only from request payload.",
+      "interviewProbe": "How do you prove that one tenant cannot affect another?"
+    },
+    {
+      "id": "SE3-08",
+      "dimension": "Correction",
+      "weight": 0.1,
+      "critical": false,
+      "observableStandard": "Corrects schema, retry or mapping assumptions when tests expose vendor behaviour and updates the operating design, not only the code.",
+      "evidenceAndRedFlag": "Evidence: revised contract or runbook. Red flag: patches the example without fixing the general failure mode.",
+      "interviewProbe": "What design assumption changed after testing?"
+    },
+    {
+      "id": "SE3-09",
+      "dimension": "Judgment",
+      "weight": 0.06,
+      "critical": false,
+      "observableStandard": "Explains trade offs among webhook speed, scheduled reconciliation, API cost, consistency and operational complexity.",
+      "evidenceAndRedFlag": "Evidence: option analysis and chosen balance. Red flag: fashionable architecture without customer need.",
+      "interviewProbe": "Under what scale would your choice stop being appropriate?"
+    },
+    {
+      "id": "SE3-10",
+      "dimension": "Judgment",
+      "weight": 0.06,
+      "critical": false,
+      "observableStandard": "Chooses bounded retry, dead letter and replay behaviour that prevents silent loss and retry storms.",
+      "evidenceAndRedFlag": "Evidence: failure state model. Red flag: infinite retry or swallowed error.",
+      "interviewProbe": "When should the system stop retrying automatically?"
+    },
+    {
+      "id": "SE3-11",
+      "dimension": "Escalation",
+      "weight": 0.08,
+      "critical": true,
+      "observableStandard": "Escalates unclear consent, vendor contract conflict, cross tenant risk or unrecoverable divergence with evidence and containment.",
+      "evidenceAndRedFlag": "Evidence: trigger and responsible owner. Red flag: resolves legal or security ambiguity alone.",
+      "interviewProbe": "Draft the escalation for a deletion rule conflict."
+    },
+    {
+      "id": "SE3-12",
+      "dimension": "Domain Execution",
+      "weight": 0.046667,
+      "critical": false,
+      "observableStandard": "Implements clear interfaces, validated payloads and maintainable mapping with appropriate separation of vendor and domain logic.",
+      "evidenceAndRedFlag": "Evidence: readable integration boundary. Red flag: vendor structures leak throughout the product.",
+      "interviewProbe": "Where would you isolate a future vendor API version change?"
+    },
+    {
+      "id": "SE3-13",
+      "dimension": "Domain Execution",
+      "weight": 0.046667,
+      "critical": true,
+      "observableStandard": "Implements secure OAuth state, token storage and rotation without exposing credentials or weakening validation.",
+      "evidenceAndRedFlag": "Evidence: code and threat checks. Red flag: token in source, logs or unencrypted local storage.",
+      "interviewProbe": "What is the highest risk point in the OAuth flow?"
+    },
+    {
+      "id": "SE3-14",
+      "dimension": "Domain Execution",
+      "weight": 0.046667,
+      "critical": false,
+      "observableStandard": "Defines useful metrics, alerts, replay tooling and reconciliation reports that support real operations.",
+      "evidenceAndRedFlag": "Evidence: runbook and measurable signals. Red flag: generic monitor errors recommendation.",
+      "interviewProbe": "Which metric detects divergence before a customer reports it?"
+    },
+    {
+      "id": "SE3-15",
+      "dimension": "Client Readiness",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Explains integration behaviour, limits, customer responsibilities and support paths in plain language.",
+      "evidenceAndRedFlag": "Evidence: customer ready implementation note. Red flag: technical handover omits operational ownership.",
+      "interviewProbe": "Explain the sync consistency model to a customer administrator."
+    },
+    {
+      "id": "SE3-16",
+      "dimension": "Client Readiness",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Provides configuration, test, activation, rollback and support steps another team can follow safely.",
+      "evidenceAndRedFlag": "Evidence: complete handover checklist. Red flag: setup depends on undocumented personal knowledge.",
+      "interviewProbe": "What would block a new engineer from operating this next week?"
+    },
+    {
+      "id": "SE3-17",
+      "dimension": "Trust & Safety",
+      "weight": 0.04,
+      "critical": true,
+      "observableStandard": "Minimises shared data, preserves consent and deletion requirements and prevents sensitive data entering AI prompts.",
+      "evidenceAndRedFlag": "Evidence: field level data rationale. Red flag: sync all fields for future use.",
+      "interviewProbe": "Which field did you exclude and why?"
+    },
+    {
+      "id": "SE3-18",
+      "dimension": "Trust & Safety",
+      "weight": 0.04,
+      "critical": true,
+      "observableStandard": "Applies least privilege, tenant isolation, auditable access and safe vendor failure handling.",
+      "evidenceAndRedFlag": "Evidence: scope, auth and audit controls. Red flag: broad vendor permissions or shared credentials.",
+      "interviewProbe": "What permission can be removed without losing the customer outcome?"
+    }
+  ],
+  "reviewerInstruction": "score only observable evidence from the versioned work sample and interview. Record what is missing. Do not infer motivation, personality, emotion, disability, protected characteristics or future performance beyond the validated role and criterion evidence.",
+  "frameworkVersion": "0.1.0"
+}

@@ -1,0 +1,121 @@
+{
+  "dimensions": [
+    {
+      "key": "decomposition",
+      "name": "Decomposition",
+      "weight": 0.1,
+      "definition": "Breaks an ambiguous work request into sequenced, testable tasks with dependencies and acceptance criteria."
+    },
+    {
+      "key": "context",
+      "name": "Context",
+      "weight": 0.08,
+      "definition": "Finds and applies the right customer, code, data, policy and commercial context; identifies missing context."
+    },
+    {
+      "key": "tool-choice",
+      "name": "Tool Choice",
+      "weight": 0.08,
+      "definition": "Selects AI and non AI tools deliberately, understands permissions and limitations, and avoids unnecessary complexity."
+    },
+    {
+      "key": "verification",
+      "name": "Verification",
+      "weight": 0.14,
+      "definition": "Tests claims, code, calculations and outputs against authoritative evidence; does not accept plausible AI output at face value."
+    },
+    {
+      "key": "correction",
+      "name": "Correction",
+      "weight": 0.1,
+      "definition": "Detects defects, diagnoses why they occurred and improves both the work product and the method used to create it."
+    },
+    {
+      "key": "judgment",
+      "name": "Judgment",
+      "weight": 0.12,
+      "definition": "Makes defensible trade offs under ambiguity, distinguishes reversible from consequential choices and explains uncertainty."
+    },
+    {
+      "key": "escalation",
+      "name": "Escalation",
+      "weight": 0.08,
+      "definition": "Recognises limits, security or customer risk and escalates at the right time with a clear recommendation and evidence."
+    },
+    {
+      "key": "domain-execution",
+      "name": "Domain Execution",
+      "weight": 0.14,
+      "definition": "Produces technically or commercially correct work that meets the role specific quality bar."
+    },
+    {
+      "key": "client-readiness",
+      "name": "Client Readiness",
+      "weight": 0.08,
+      "definition": "Communicates clearly, owns the outcome, documents decisions and leaves work ready for another person to operate."
+    },
+    {
+      "key": "trust-safety",
+      "name": "Trust & Safety",
+      "weight": 0.08,
+      "definition": "Protects data, access, security, brand, consent and customer interests while using AI and other tools."
+    }
+  ],
+  "scoreAnchors": [
+    {
+      "score": 1,
+      "anchor": "Unsafe or materially incorrect",
+      "interpretation": "Misses the objective or creates unacceptable risk. Evidence shows blind reliance, fabricated support or inability to recover."
+    },
+    {
+      "score": 2,
+      "anchor": "Partial and high rework",
+      "interpretation": "Some useful progress, but important omissions, weak verification or repeated support would be required before client deployment."
+    },
+    {
+      "score": 3,
+      "anchor": "Competent with defined support",
+      "interpretation": "Meets the core requirement, verifies material outputs and can operate with normal supervision and clear escalation paths."
+    },
+    {
+      "score": 4,
+      "anchor": "Strong and client ready",
+      "interpretation": "Works systematically, anticipates edge cases, communicates trade offs and produces a reliable handover with little rework."
+    },
+    {
+      "score": 5,
+      "anchor": "Exceptional and leverage creating",
+      "interpretation": "Improves the brief or system, creates reusable controls, calibrates uncertainty and raises the quality of the surrounding team."
+    }
+  ],
+  "controls": {
+    "criticalScoreThreshold": 2.0,
+    "reviewerVarianceTrigger": 2.0,
+    "minimumScoredCoverage": 0.9,
+    "minimumEvidenceNoteCoverage": 0.9
+  },
+  "evidenceIndexBands": [
+    {
+      "minIndex": 0.0,
+      "band": "Limited evidence"
+    },
+    {
+      "minIndex": 0.55,
+      "band": "Mixed evidence"
+    },
+    {
+      "minIndex": 0.7,
+      "band": "Supported evidence"
+    },
+    {
+      "minIndex": 0.85,
+      "band": "Strong evidence"
+    }
+  ],
+  "frameworkVersion": "0.1.0",
+  "source": {
+    "document": "CPF_Phase1_AI_Native_Talent_Assessment_Templates.xlsx",
+    "sheet": "Scoring Model",
+    "importedAt": "2026-07-25"
+  }
+}

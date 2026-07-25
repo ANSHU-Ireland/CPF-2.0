@@ -1,0 +1,214 @@
+{
+  "code": "DM2",
+  "roleFamily": "digital-marketing",
+  "title": "Digital Marketer 2 - SEO and Content Growth Sprint",
+  "subtitle": "Search intent, evidence quality and conversion focused execution",
+  "purpose": "Assess whether a marketer can turn search, site and customer evidence into a focused organic growth plan without fabricating expertise, citations or performance certainty.",
+  "customerUse": "Best for customers hiring SEO, content or growth marketers who must connect discoverability to qualified demand and brand credibility.",
+  "targetLevel": "Client ready junior to mid level SEO or content marketer with editorial and technical escalation routes.",
+  "timebox": "120 minutes plus a 25 minute evidence interview.",
+  "simulation": "A B2B software site has flat non brand organic traffic, declining demo conversion and overlapping articles targeting similar topics.",
+  "sourcePack": "Search Console and analytics exports, keyword set, SERP snapshots, content inventory, backlink summary, technical crawl extract, product brief, customer interviews, brand voice and claim substantiation pack.",
+  "approvedTools": "Approved AI assistant, spreadsheet or notebook, provided analytics exports, creative workspace and supplied research pack. No live ad publishing, customer contact or unsupported external claims.",
+  "deliverables": "Opportunity map, technical and content diagnosis, page consolidation decision, search brief, revised page section, internal linking plan, measurement framework and stakeholder recommendation.",
+  "constraints": "No unsupported expertise or performance claims; no invented search volume or citations; protect existing valuable rankings; distinguish supplied snapshot from live SERP state.",
+  "evidenceRecord": "Capture prompts, material AI outputs, source references, tool actions, corrections, decisions, tests or calculations, final deliverables and a short note explaining where AI was not trusted.",
+  "stages": [
+    {
+      "stage": "1. Map | 20 min",
+      "durationMinutes": null,
+      "candidateAction": "Define audience, problem, intent, funnel role and commercial outcome for the supplied search landscape.",
+      "evidenceCaptured": "Intent map and success hierarchy."
+    },
+    {
+      "stage": "2. Diagnose | 25 min",
+      "durationMinutes": null,
+      "candidateAction": "Analyse technical, cannibalisation, content quality, authority and conversion evidence.",
+      "evidenceCaptured": "Ranked causes and data limitations."
+    },
+    {
+      "stage": "3. Prioritise | 20 min",
+      "durationMinutes": null,
+      "candidateAction": "Select pages and interventions by impact, confidence, effort and risk to existing performance.",
+      "evidenceCaptured": "Prioritisation matrix and dependency plan."
+    },
+    {
+      "stage": "4. Create | 35 min",
+      "durationMinutes": null,
+      "candidateAction": "Produce a high quality brief and sample optimisation grounded in supplied expertise and brand voice.",
+      "evidenceCaptured": "Brief, draft section, sources and AI corrections."
+    },
+    {
+      "stage": "5. Measure | 20 min",
+      "durationMinutes": null,
+      "candidateAction": "Define implementation, QA, leading indicators, conversion measures and review cadence.",
+      "evidenceCaptured": "Measurement plan and decision triggers."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "DM2-01",
+      "dimension": "Decomposition",
+      "weight": 0.05,
+      "critical": false,
+      "observableStandard": "Breaks the problem into technical access, intent coverage, cannibalisation, content quality, authority, internal links and conversion experience.",
+      "evidenceAndRedFlag": "Evidence: structured diagnosis map. Red flag: content volume is the default solution.",
+      "interviewProbe": "Which workstream could invalidate the rest of the plan?"
+    },
+    {
+      "id": "DM2-02",
+      "dimension": "Decomposition",
+      "weight": 0.05,
+      "critical": false,
+      "observableStandard": "Sequences protection of current rankings, consolidation, content improvement, technical fixes and measurement with dependencies.",
+      "evidenceAndRedFlag": "Evidence: phased sprint. Red flag: deletes or redirects content before mapping value and links.",
+      "interviewProbe": "What must be backed up or benchmarked before implementation?"
+    },
+    {
+      "id": "DM2-03",
+      "dimension": "Context",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Connects audience language, product capability, sales questions, brand voice and funnel stage to keyword and page choices.",
+      "evidenceAndRedFlag": "Evidence: customer and product context in brief. Red flag: keyword volume alone drives priority.",
+      "interviewProbe": "Which customer insight changed the proposed page angle?"
+    },
+    {
+      "id": "DM2-04",
+      "dimension": "Context",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Treats SERP snapshots, tools and AI suggestions as dated evidence and identifies where live validation or subject expert input is required.",
+      "evidenceAndRedFlag": "Evidence: freshness and authority notes. Red flag: claims current rankings or competitor behaviour not in the pack.",
+      "interviewProbe": "Which conclusion is most time sensitive?"
+    },
+    {
+      "id": "DM2-05",
+      "dimension": "Tool Choice",
+      "weight": 0.08,
+      "critical": false,
+      "observableStandard": "Uses crawl, query, page and analytics evidence for diagnosis and AI for clustering or drafting with human source and brand review.",
+      "evidenceAndRedFlag": "Evidence: tool to question mapping. Red flag: generated keyword list or article is used without evidence checks.",
+      "interviewProbe": "Which task was unsuitable for AI and why?"
+    },
+    {
+      "id": "DM2-06",
+      "dimension": "Verification",
+      "weight": 0.07,
+      "critical": true,
+      "observableStandard": "Checks keyword, ranking, traffic, conversion, indexation and canonical claims against the supplied exports and page evidence.",
+      "evidenceAndRedFlag": "Evidence: cited rows or pages and reconciled dates. Red flag: fabricated search data or unsupported audit finding.",
+      "interviewProbe": "Show the strongest source for your top opportunity."
+    },
+    {
+      "id": "DM2-07",
+      "dimension": "Verification",
+      "weight": 0.07,
+      "critical": true,
+      "observableStandard": "Validates content statements, examples and citations against authorised product or expert sources and flags missing substantiation.",
+      "evidenceAndRedFlag": "Evidence: source mapping for material claims. Red flag: AI generated fact, quote or citation presented as true.",
+      "interviewProbe": "Which claim did you remove or soften after verification?"
+    },
+    {
+      "id": "DM2-08",
+      "dimension": "Correction",
+      "weight": 0.1,
+      "critical": false,
+      "observableStandard": "Corrects keyword clustering, intent assumption or draft content when page, SERP or customer evidence conflicts with AI output.",
+      "evidenceAndRedFlag": "Evidence: changed cluster or copy with reason. Red flag: edits only tone while preserving unsupported substance.",
+      "interviewProbe": "What was the most important AI induced error?"
+    },
+    {
+      "id": "DM2-09",
+      "dimension": "Judgment",
+      "weight": 0.06,
+      "critical": false,
+      "observableStandard": "Chooses update, consolidate, redirect, create or leave alone based on evidence, link equity, intent overlap and commercial value.",
+      "evidenceAndRedFlag": "Evidence: page level decision logic. Red flag: mass consolidation without risk analysis.",
+      "interviewProbe": "Why should this page be consolidated rather than improved separately?"
+    },
+    {
+      "id": "DM2-10",
+      "dimension": "Judgment",
+      "weight": 0.06,
+      "critical": false,
+      "observableStandard": "Balances search opportunity, ability to win, customer relevance, production effort and conversion value rather than maximising traffic alone.",
+      "evidenceAndRedFlag": "Evidence: impact confidence effort rationale. Red flag: high volume low relevance target dominates.",
+      "interviewProbe": "Which lower volume topic has greater business value?"
+    },
+    {
+      "id": "DM2-11",
+      "dimension": "Escalation",
+      "weight": 0.08,
+      "critical": true,
+      "observableStandard": "Escalates legal, regulated, expert, migration or technical implementation questions before publishing or redirecting.",
+      "evidenceAndRedFlag": "Evidence: owner and precise question. Red flag: marketer self approves unsupported technical or legal claim.",
+      "interviewProbe": "Which page needs subject matter review and what must be verified?"
+    },
+    {
+      "id": "DM2-12",
+      "dimension": "Domain Execution",
+      "weight": 0.046667,
+      "critical": false,
+      "observableStandard": "Creates an actionable content brief with intent, audience, question set, structure, proof, internal links, conversion action and exclusions.",
+      "evidenceAndRedFlag": "Evidence: complete brief. Red flag: generic outline without unique source material.",
+      "interviewProbe": "What makes this brief difficult for a competitor to copy?"
+    },
+    {
+      "id": "DM2-13",
+      "dimension": "Domain Execution",
+      "weight": 0.046667,
+      "critical": true,
+      "observableStandard": "Produces clear, useful and brand aligned sample content with accurate claims and natural search coverage.",
+      "evidenceAndRedFlag": "Evidence: publishable section and source trail. Red flag: keyword stuffing, filler or invented expertise.",
+      "interviewProbe": "Which sentence best demonstrates real customer value?"
+    },
+    {
+      "id": "DM2-14",
+      "dimension": "Domain Execution",
+      "weight": 0.046667,
+      "critical": false,
+      "observableStandard": "Defines technical and on page QA plus leading and lagging measures for visibility, engagement and qualified conversion.",
+      "evidenceAndRedFlag": "Evidence: implementation checklist and dashboard fields. Red flag: ranking only as success.",
+      "interviewProbe": "When should the team judge whether the change worked?"
+    },
+    {
+      "id": "DM2-15",
+      "dimension": "Client Readiness",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Explains priorities, expected mechanism, risk and resource requirements clearly to content, product and technical teams.",
+      "evidenceAndRedFlag": "Evidence: stakeholder note with owners. Red flag: recommendations cannot be implemented from the handover.",
+      "interviewProbe": "Give the web lead the three most important actions."
+    },
+    {
+      "id": "DM2-16",
+      "dimension": "Client Readiness",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Maintains an editorial evidence trail and content update cadence so future teams can refresh rather than recreate the work.",
+      "evidenceAndRedFlag": "Evidence: source register and review date. Red flag: no content owner or freshness plan.",
+      "interviewProbe": "What should trigger an early content review?"
+    },
+    {
+      "id": "DM2-17",
+      "dimension": "Trust & Safety",
+      "weight": 0.04,
+      "critical": true,
+      "observableStandard": "Protects customer interview data and confidential product material when using AI and does not reveal personal or proprietary details.",
+      "evidenceAndRedFlag": "Evidence: redacted or summarised inputs. Red flag: raw interview transcript entered into an unapproved model.",
+      "interviewProbe": "How did you retain insight while minimising personal data?"
+    },
+    {
+      "id": "DM2-18",
+      "dimension": "Trust & Safety",
+      "weight": 0.04,
+      "critical": true,
+      "observableStandard": "Avoids deceptive search tactics, copied content, fabricated authority and claims that could harm users or brand trust.",
+      "evidenceAndRedFlag": "Evidence: ethical SEO and source controls. Red flag: doorway pages, fake credentials or copied competitor text.",
+      "interviewProbe": "Which growth shortcut would you explicitly reject?"
+    }
+  ],
+  "reviewerInstruction": "score only observable evidence from the versioned work sample and interview. Record what is missing. Do not infer motivation, personality, emotion, disability, protected characteristics or future performance beyond the validated role and criterion evidence.",
+  "frameworkVersion": "0.1.0"
+}

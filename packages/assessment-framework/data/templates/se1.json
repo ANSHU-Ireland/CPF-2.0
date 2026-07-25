@@ -1,0 +1,214 @@
+{
+  "code": "SE1",
+  "roleFamily": "software-engineering",
+  "title": "Software Engineer 1 - Production Safe Feature Delivery",
+  "subtitle": "End to end work sample in an unfamiliar product codebase",
+  "purpose": "Assess whether an engineer can turn an ambiguous customer request into a production safe, tested and well communicated change while using AI proportionately.",
+  "customerUse": "Best for customers hiring product, full stack or backend engineers who must deliver small features independently inside an existing team.",
+  "targetLevel": "Client ready junior to mid level engineer, approximately 2 to 5 years of relevant experience. This is not a senior architecture assessment.",
+  "timebox": "120 minutes plus a 20 minute evidence interview. Offer documented accommodations and pause rules.",
+  "simulation": "Add a bulk status update feature to a support ticket application. The change touches the API, permissions, audit events and a small user interface flow.",
+  "sourcePack": "Repository snapshot, user story, acceptance criteria, API contract, role permission matrix, data model, design fragment, logging policy and a small failing test set.",
+  "approvedTools": "Approved AI assistant, local IDE assistant, terminal, test runner and provided documentation. No public internet or unapproved packages unless the brief explicitly permits them.",
+  "deliverables": "Clarification log, delivery plan, code change, automated tests, short demo note, risk register, release and rollback plan, and complete AI evidence record.",
+  "constraints": "Preserve backwards compatibility; do not log personal data; add no dependency without justification; keep the change scoped; state unresolved assumptions.",
+  "evidenceRecord": "Capture prompts, material AI outputs, source references, tool actions, corrections, decisions, tests or calculations, final deliverables and a short note explaining where AI was not trusted.",
+  "stages": [
+    {
+      "stage": "1. Frame | 15 min",
+      "durationMinutes": null,
+      "candidateAction": "Clarify the user outcome, define acceptance criteria, surface unknowns and sequence the work.",
+      "evidenceCaptured": "Questions, assumptions, task breakdown and risk ranking."
+    },
+    {
+      "stage": "2. Inspect | 20 min",
+      "durationMinutes": null,
+      "candidateAction": "Trace the relevant request, permission, data and UI paths before changing code.",
+      "evidenceCaptured": "Repository navigation, architecture notes and contextual evidence."
+    },
+    {
+      "stage": "3. Build | 45 min",
+      "durationMinutes": null,
+      "candidateAction": "Implement the smallest complete change and use AI only where it improves speed without obscuring understanding.",
+      "evidenceCaptured": "Code diff, prompt trace and tool choices."
+    },
+    {
+      "stage": "4. Verify | 25 min",
+      "durationMinutes": null,
+      "candidateAction": "Test happy path, failure path, permissions, audit behaviour and regression risk.",
+      "evidenceCaptured": "Test outputs, manual checks and corrected defects."
+    },
+    {
+      "stage": "5. Handover | 15 min",
+      "durationMinutes": null,
+      "candidateAction": "Explain trade offs, residual risk, release controls, rollback and questions for the team.",
+      "evidenceCaptured": "Decision note, release plan and escalation points."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "SE1-01",
+      "dimension": "Decomposition",
+      "weight": 0.05,
+      "critical": false,
+      "observableStandard": "Turns the story into API, permission, data, UI, testing and release workstreams with explicit dependencies and acceptance checks.",
+      "evidenceAndRedFlag": "Evidence: sequenced plan tied to acceptance criteria. Red flag: begins coding before identifying permission and audit impacts.",
+      "interviewProbe": "Which dependency would you validate first in the real customer environment, and why?"
+    },
+    {
+      "id": "SE1-02",
+      "dimension": "Decomposition",
+      "weight": 0.05,
+      "critical": false,
+      "observableStandard": "Separates must have behaviour from optional polish and protects the timebox with a credible minimum complete scope.",
+      "evidenceAndRedFlag": "Evidence: scope decision and deferred items. Red flag: broad rewrite or unfinished feature presented as complete.",
+      "interviewProbe": "What did you deliberately leave out, and what evidence supports that choice?"
+    },
+    {
+      "id": "SE1-03",
+      "dimension": "Context",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Finds the existing conventions for routing, authorisation, audit events, errors and tests instead of inventing parallel patterns.",
+      "evidenceAndRedFlag": "Evidence: specific files or contracts referenced. Red flag: changes based only on AI generated assumptions about the codebase.",
+      "interviewProbe": "Which existing pattern most influenced your implementation?"
+    },
+    {
+      "id": "SE1-04",
+      "dimension": "Context",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Identifies unclear product rules and records assumptions that could change behaviour for real users.",
+      "evidenceAndRedFlag": "Evidence: clarification log and bounded assumptions. Red flag: silently chooses status transitions or user permissions.",
+      "interviewProbe": "Which assumption would require product owner confirmation before release?"
+    },
+    {
+      "id": "SE1-05",
+      "dimension": "Tool Choice",
+      "weight": 0.08,
+      "critical": false,
+      "observableStandard": "Uses repository search, tests and static analysis for ground truth; uses AI for bounded drafting or explanation and checks generated code before adoption.",
+      "evidenceAndRedFlag": "Evidence: tool rationale and rejected AI suggestion. Red flag: pastes a large generated solution without tracing or understanding it.",
+      "interviewProbe": "Show one AI suggestion you rejected or materially changed."
+    },
+    {
+      "id": "SE1-06",
+      "dimension": "Verification",
+      "weight": 0.07,
+      "critical": true,
+      "observableStandard": "Demonstrates the feature against each acceptance criterion and verifies permission denial, invalid input and audit event behaviour.",
+      "evidenceAndRedFlag": "Evidence: criterion to test mapping and outputs. Red flag: happy path only or claimed tests that were not run.",
+      "interviewProbe": "Which test gives the strongest evidence that the customer risk is controlled?"
+    },
+    {
+      "id": "SE1-07",
+      "dimension": "Verification",
+      "weight": 0.07,
+      "critical": true,
+      "observableStandard": "Checks backwards compatibility, regression exposure and whether logs, error messages and audit records contain appropriate data.",
+      "evidenceAndRedFlag": "Evidence: regression run and log inspection. Red flag: leaks ticket content or personal data into logs.",
+      "interviewProbe": "How did you establish that existing clients will not break?"
+    },
+    {
+      "id": "SE1-08",
+      "dimension": "Correction",
+      "weight": 0.1,
+      "critical": false,
+      "observableStandard": "Uses failures to diagnose the underlying issue, corrects the implementation and records what changed in the reasoning or prompt.",
+      "evidenceAndRedFlag": "Evidence: before and after test or code evidence. Red flag: repeatedly prompts AI until tests pass without explaining why.",
+      "interviewProbe": "Describe the most important correction and its root cause."
+    },
+    {
+      "id": "SE1-09",
+      "dimension": "Judgment",
+      "weight": 0.06,
+      "critical": false,
+      "observableStandard": "Chooses an implementation proportional to the request and explains trade offs in consistency, maintainability, speed and future extensibility.",
+      "evidenceAndRedFlag": "Evidence: decision note with alternatives. Red flag: over engineering or hidden debt without acknowledgement.",
+      "interviewProbe": "What would make you choose the rejected alternative later?"
+    },
+    {
+      "id": "SE1-10",
+      "dimension": "Judgment",
+      "weight": 0.06,
+      "critical": false,
+      "observableStandard": "Distinguishes reversible implementation choices from data, permission or contract choices that need stronger review.",
+      "evidenceAndRedFlag": "Evidence: risk ranking and review plan. Red flag: treats authorisation or schema changes as routine details.",
+      "interviewProbe": "Which part of this change has the largest blast radius?"
+    },
+    {
+      "id": "SE1-11",
+      "dimension": "Escalation",
+      "weight": 0.08,
+      "critical": true,
+      "observableStandard": "Stops or seeks review when requirements, access, migration or security risk exceeds the evidence available and escalates with a recommendation.",
+      "evidenceAndRedFlag": "Evidence: precise escalation trigger and owner. Red flag: guesses through a consequential ambiguity.",
+      "interviewProbe": "Draft the message you would send to unblock the highest risk unknown."
+    },
+    {
+      "id": "SE1-12",
+      "dimension": "Domain Execution",
+      "weight": 0.046667,
+      "critical": false,
+      "observableStandard": "Produces readable, idiomatic code aligned to repository conventions with clear boundaries and no unnecessary duplication.",
+      "evidenceAndRedFlag": "Evidence: coherent diff and reviewer readable structure. Red flag: dead code, broad unrelated edits or unclear control flow.",
+      "interviewProbe": "Which code quality choice will matter most six months from now?"
+    },
+    {
+      "id": "SE1-13",
+      "dimension": "Domain Execution",
+      "weight": 0.046667,
+      "critical": true,
+      "observableStandard": "Implements correct authorisation, validation, error handling and audit behaviour across the complete feature path.",
+      "evidenceAndRedFlag": "Evidence: implementation plus tests. Red flag: client side only authorisation or unvalidated state changes.",
+      "interviewProbe": "Where is the authoritative permission check and how is it tested?"
+    },
+    {
+      "id": "SE1-14",
+      "dimension": "Domain Execution",
+      "weight": 0.046667,
+      "critical": false,
+      "observableStandard": "Provides a release plan with observability, success measures, staged rollout and a feasible rollback.",
+      "evidenceAndRedFlag": "Evidence: release checklist and monitor signals. Red flag: deployment described as merge and hope.",
+      "interviewProbe": "What would cause you to roll back in the first hour?"
+    },
+    {
+      "id": "SE1-15",
+      "dimension": "Client Readiness",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Explains the change in plain language, documents assumptions and gives another engineer enough information to operate it.",
+      "evidenceAndRedFlag": "Evidence: concise handover and run notes. Red flag: only code is delivered.",
+      "interviewProbe": "Give a two minute handover to a customer engineering lead."
+    },
+    {
+      "id": "SE1-16",
+      "dimension": "Client Readiness",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Takes ownership of outcome quality, acknowledges limitations and proposes the next sensible action without overstating completion.",
+      "evidenceAndRedFlag": "Evidence: accurate status and residual work. Red flag: conceals incomplete work or test gaps.",
+      "interviewProbe": "What remains uncertain and who should own it?"
+    },
+    {
+      "id": "SE1-17",
+      "dimension": "Trust & Safety",
+      "weight": 0.04,
+      "critical": true,
+      "observableStandard": "Protects personal data, secrets and tenant boundaries in code, logs, prompts and evidence capture.",
+      "evidenceAndRedFlag": "Evidence: safe logging and no sensitive prompt content. Red flag: secrets, personal data or cross tenant access exposed.",
+      "interviewProbe": "What data must never enter the AI assistant in this task?"
+    },
+    {
+      "id": "SE1-18",
+      "dimension": "Trust & Safety",
+      "weight": 0.04,
+      "critical": true,
+      "observableStandard": "Applies least privilege and does not bypass controls to make the demonstration pass.",
+      "evidenceAndRedFlag": "Evidence: permission tests and safe tooling. Red flag: disabled checks, hard coded credentials or unsafe default access.",
+      "interviewProbe": "Which security control was easiest to accidentally bypass?"
+    }
+  ],
+  "reviewerInstruction": "score only observable evidence from the versioned work sample and interview. Record what is missing. Do not infer motivation, personality, emotion, disability, protected characteristics or future performance beyond the validated role and criterion evidence.",
+  "frameworkVersion": "0.1.0"
+}

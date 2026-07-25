@@ -1,0 +1,214 @@
+{
+  "code": "DM4",
+  "roleFamily": "digital-marketing",
+  "title": "Digital Marketer 4 - Analytics, Attribution and Commercial Decision",
+  "subtitle": "Reconcile conflicting systems and communicate uncertainty",
+  "purpose": "Assess whether a marketer can build decision quality from imperfect platform, analytics and CRM data without creating false precision or causal claims.",
+  "customerUse": "Best for customers hiring growth analysts, marketing operations specialists or commercially accountable digital marketers.",
+  "targetLevel": "Client ready junior to mid level marketing analyst or operations marketer with finance and data escalation routes.",
+  "timebox": "120 minutes plus a 30 minute evidence interview.",
+  "simulation": "Ad platforms, GA4 and CRM disagree on conversions and revenue. Leadership wants to know which channels are profitable and where to invest next quarter.",
+  "sourcePack": "Platform exports, GA4 events, CRM opportunities and revenue, UTM dictionary, identity and deduplication rules, consent changes, sales cycle distribution, gross margin assumptions and prior dashboard.",
+  "approvedTools": "Approved AI assistant, spreadsheet or notebook, provided analytics exports, creative workspace and supplied research pack. No live ad publishing, customer contact or unsupported external claims.",
+  "deliverables": "Data quality audit, metric dictionary, reconciled funnel, attribution view, CAC and return analysis, sensitivity ranges, investment recommendation, dashboard specification and evidence record.",
+  "constraints": "Preserve raw source data; document transformations; distinguish observed, attributed and incremental outcomes; no unsupported user level identity stitching.",
+  "evidenceRecord": "Capture prompts, material AI outputs, source references, tool actions, corrections, decisions, tests or calculations, final deliverables and a short note explaining where AI was not trusted.",
+  "stages": [
+    {
+      "stage": "1. Define | 15 min",
+      "durationMinutes": null,
+      "candidateAction": "Clarify the decision, unit economics, time horizon and metric definitions.",
+      "evidenceCaptured": "Decision question and metric contract."
+    },
+    {
+      "stage": "2. Audit | 30 min",
+      "durationMinutes": null,
+      "candidateAction": "Check schema, dates, currency, attribution windows, identity, duplicates, missingness and consent changes.",
+      "evidenceCaptured": "Data quality log and severity."
+    },
+    {
+      "stage": "3. Reconcile | 30 min",
+      "durationMinutes": null,
+      "candidateAction": "Build a traceable funnel from spend through qualified pipeline and realised revenue.",
+      "evidenceCaptured": "Transformation trail and exceptions."
+    },
+    {
+      "stage": "4. Interpret | 25 min",
+      "durationMinutes": null,
+      "candidateAction": "Compare attribution views, lag and margin sensitivity before recommending investment.",
+      "evidenceCaptured": "Ranges, assumptions and decision logic."
+    },
+    {
+      "stage": "5. Communicate | 20 min",
+      "durationMinutes": null,
+      "candidateAction": "Present what is known, uncertain and required next to marketing and finance.",
+      "evidenceCaptured": "Executive recommendation and measurement backlog."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "DM4-01",
+      "dimension": "Decomposition",
+      "weight": 0.05,
+      "critical": false,
+      "observableStandard": "Breaks the decision into source quality, identity, metric definition, attribution, lag, unit economics, sensitivity and action.",
+      "evidenceAndRedFlag": "Evidence: analysis plan tied to decision. Red flag: starts by choosing a preferred attribution model.",
+      "interviewProbe": "Which dependency makes every downstream chart unreliable?"
+    },
+    {
+      "id": "DM4-02",
+      "dimension": "Decomposition",
+      "weight": 0.05,
+      "critical": false,
+      "observableStandard": "Separates immediate decision support from instrumentation repair and longer term incrementality work.",
+      "evidenceAndRedFlag": "Evidence: phased answer and backlog. Red flag: refuses any decision until perfect data or pretends the data is perfect.",
+      "interviewProbe": "What decision can be made now, and what must wait?"
+    },
+    {
+      "id": "DM4-03",
+      "dimension": "Context",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Uses sales cycle, gross margin, pipeline stages, geography, consent and channel role to define relevant metrics and windows.",
+      "evidenceAndRedFlag": "Evidence: business context in calculations. Red flag: one generic ROAS formula across all channels.",
+      "interviewProbe": "Which channel needs a different evaluation window?"
+    },
+    {
+      "id": "DM4-04",
+      "dimension": "Context",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Identifies tracking changes, offline conversion gaps, view through rules and CRM process differences that explain system disagreement.",
+      "evidenceAndRedFlag": "Evidence: system context map. Red flag: assumes one platform is authoritative for every question.",
+      "interviewProbe": "Which system is authoritative for realised revenue, and why?"
+    },
+    {
+      "id": "DM4-05",
+      "dimension": "Tool Choice",
+      "weight": 0.08,
+      "critical": false,
+      "observableStandard": "Uses traceable spreadsheet or code transformations, preserves raw exports and uses AI only for bounded checks or documentation.",
+      "evidenceAndRedFlag": "Evidence: auditable lineage and checked outputs. Red flag: data uploaded to an opaque model and returned as an unexplained answer.",
+      "interviewProbe": "How can another analyst reproduce your result?"
+    },
+    {
+      "id": "DM4-06",
+      "dimension": "Verification",
+      "weight": 0.07,
+      "critical": true,
+      "observableStandard": "Checks row counts, joins, duplicate keys, dates, currencies, missingness, totals and metric denominators against source exports.",
+      "evidenceAndRedFlag": "Evidence: reconciliation controls. Red flag: silent many to many join or mismatched currency.",
+      "interviewProbe": "Which control caught the most material data issue?"
+    },
+    {
+      "id": "DM4-07",
+      "dimension": "Verification",
+      "weight": 0.07,
+      "critical": true,
+      "observableStandard": "Validates recommendation across attribution models, conversion lag, margin and uncertain match rates.",
+      "evidenceAndRedFlag": "Evidence: sensitivity table or bounded scenarios. Red flag: one precise profitability number presented as fact.",
+      "interviewProbe": "Which assumption has the greatest effect on channel ranking?"
+    },
+    {
+      "id": "DM4-08",
+      "dimension": "Correction",
+      "weight": 0.1,
+      "critical": false,
+      "observableStandard": "Corrects transformations, definitions or recommendation when audit controls fail and records the impact of the change.",
+      "evidenceAndRedFlag": "Evidence: issue log and revised output. Red flag: manual plug used to force totals to match.",
+      "interviewProbe": "What changed after your reconciliation failed?"
+    },
+    {
+      "id": "DM4-09",
+      "dimension": "Judgment",
+      "weight": 0.06,
+      "critical": false,
+      "observableStandard": "Distinguishes descriptive attribution from causal incrementality and makes a decision proportionate to evidence quality.",
+      "evidenceAndRedFlag": "Evidence: explicit inference limits. Red flag: attributed revenue described as caused revenue.",
+      "interviewProbe": "What experiment would improve causal confidence?"
+    },
+    {
+      "id": "DM4-10",
+      "dimension": "Judgment",
+      "weight": 0.06,
+      "critical": false,
+      "observableStandard": "Balances efficiency, scale, concentration, cash timing, data quality and strategic channel role in investment advice.",
+      "evidenceAndRedFlag": "Evidence: portfolio rationale. Red flag: funds only the lowest observed CAC without saturation or measurement bias analysis.",
+      "interviewProbe": "Why might the apparently most efficient channel not receive all incremental budget?"
+    },
+    {
+      "id": "DM4-11",
+      "dimension": "Escalation",
+      "weight": 0.08,
+      "critical": true,
+      "observableStandard": "Escalates material data integrity, consent, finance definition or identity resolution risk and offers a safe interim reporting approach.",
+      "evidenceAndRedFlag": "Evidence: issue owner and containment. Red flag: publishes executive dashboard despite known material misstatement.",
+      "interviewProbe": "Draft the note if revenue is overstated due to duplicate joins."
+    },
+    {
+      "id": "DM4-12",
+      "dimension": "Domain Execution",
+      "weight": 0.046667,
+      "critical": false,
+      "observableStandard": "Creates a clear metric dictionary with source, numerator, denominator, window, exclusions and owner.",
+      "evidenceAndRedFlag": "Evidence: implementation ready definitions. Red flag: CAC, ROAS or conversion used without consistent meaning.",
+      "interviewProbe": "Which metric name is most likely to be misunderstood?"
+    },
+    {
+      "id": "DM4-13",
+      "dimension": "Domain Execution",
+      "weight": 0.046667,
+      "critical": true,
+      "observableStandard": "Produces correct, traceable spend, funnel, CAC, return and contribution calculations with reconciled totals.",
+      "evidenceAndRedFlag": "Evidence: formulas and controls. Red flag: arithmetic, join or denominator error changes the recommendation.",
+      "interviewProbe": "Trace one executive number back to its source rows."
+    },
+    {
+      "id": "DM4-14",
+      "dimension": "Domain Execution",
+      "weight": 0.046667,
+      "critical": false,
+      "observableStandard": "Designs a decision focused dashboard that shows outcome, trend, uncertainty, data quality and next action without vanity clutter.",
+      "evidenceAndRedFlag": "Evidence: dashboard specification or wireframe. Red flag: high visual polish with no action or caveat.",
+      "interviewProbe": "Which metric should be most prominent and why?"
+    },
+    {
+      "id": "DM4-15",
+      "dimension": "Client Readiness",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Explains technical data issues and commercial implications clearly to marketing, sales and finance stakeholders.",
+      "evidenceAndRedFlag": "Evidence: executive summary with plain language. Red flag: hides uncertainty in footnotes or overwhelms with methodology.",
+      "interviewProbe": "Give your recommendation to the finance director in two minutes."
+    },
+    {
+      "id": "DM4-16",
+      "dimension": "Client Readiness",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Defines ownership and cadence for data quality, reporting updates and decision review.",
+      "evidenceAndRedFlag": "Evidence: operating model. Red flag: dashboard delivered without maintenance or accountable owner.",
+      "interviewProbe": "Who signs off the metric definitions each quarter?"
+    },
+    {
+      "id": "DM4-17",
+      "dimension": "Trust & Safety",
+      "weight": 0.04,
+      "critical": true,
+      "observableStandard": "Uses aggregated, minimised data and respects consent boundaries without unauthorised cross system identity stitching.",
+      "evidenceAndRedFlag": "Evidence: safe join rules and data handling. Red flag: probabilistic identity link used as certain personal data.",
+      "interviewProbe": "Which join is not justified by the supplied consent and identity rules?"
+    },
+    {
+      "id": "DM4-18",
+      "dimension": "Trust & Safety",
+      "weight": 0.04,
+      "critical": true,
+      "observableStandard": "Prevents sensitive raw data entering AI tools and preserves access, lineage and deletion controls in the analysis workflow.",
+      "evidenceAndRedFlag": "Evidence: redaction and source governance. Red flag: customer level export shared outside approved environment.",
+      "interviewProbe": "What would you remove before using an AI assistant?"
+    }
+  ],
+  "reviewerInstruction": "score only observable evidence from the versioned work sample and interview. Record what is missing. Do not infer motivation, personality, emotion, disability, protected characteristics or future performance beyond the validated role and criterion evidence.",
+  "frameworkVersion": "0.1.0"
+}

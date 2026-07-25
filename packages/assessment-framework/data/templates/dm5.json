@@ -1,0 +1,214 @@
+{
+  "code": "DM5",
+  "roleFamily": "digital-marketing",
+  "title": "Digital Marketer 5 - Integrated Product Launch",
+  "subtitle": "Commercial strategy, channel orchestration and accountable execution",
+  "purpose": "Assess whether a marketer can turn a product, audience and budget into an integrated launch that is differentiated, measurable, operationally realistic and safe for the brand.",
+  "customerUse": "Best for customers hiring broad digital marketers or growth leads who coordinate paid, owned, content, CRM, creative and sales enablement work.",
+  "targetLevel": "Client ready mid level digital marketer. For junior candidates, narrow the market, budget and number of channels.",
+  "timebox": "150 minutes plus a 30 minute evidence interview.",
+  "simulation": "Launch a new B2B workflow product into Ireland and the UK over eight weeks with a EUR75,000 working media budget and limited creative capacity.",
+  "sourcePack": "ICP research, customer interviews, product capability and proof pack, pricing, brand system, competitor snapshot, channel benchmarks, sales capacity, website analytics, legal constraints, asset inventory and budget rules.",
+  "approvedTools": "Approved AI assistant, spreadsheet or notebook, provided analytics exports, creative workspace and supplied research pack. No live ad publishing, customer contact or unsupported external claims.",
+  "deliverables": "Launch thesis, prioritised audiences, messaging hierarchy, channel and budget plan, content and CRM calendar, experiment backlog, funnel forecast, dashboard, approval map, risk register and executive pitch.",
+  "constraints": "Use only substantiated claims; respect capacity and lead time; no live spend; show downside case; do not treat benchmark data as a guarantee.",
+  "evidenceRecord": "Capture prompts, material AI outputs, source references, tool actions, corrections, decisions, tests or calculations, final deliverables and a short note explaining where AI was not trusted.",
+  "stages": [
+    {
+      "stage": "1. Choose | 25 min",
+      "durationMinutes": null,
+      "candidateAction": "Define launch objective, audience priority, buying problem, differentiation and exclusions.",
+      "evidenceCaptured": "Launch thesis and evidence trail."
+    },
+    {
+      "stage": "2. Plan | 35 min",
+      "durationMinutes": null,
+      "candidateAction": "Map journey, channel roles, budget, creative capacity, sales handoff and timeline.",
+      "evidenceCaptured": "Integrated plan and dependencies."
+    },
+    {
+      "stage": "3. Create | 35 min",
+      "durationMinutes": null,
+      "candidateAction": "Build messaging hierarchy and representative assets or briefs grounded in product proof.",
+      "evidenceCaptured": "Copy, brief, source and AI corrections."
+    },
+    {
+      "stage": "4. Model | 30 min",
+      "durationMinutes": null,
+      "candidateAction": "Forecast funnel ranges, design tests and set decision and stopping rules.",
+      "evidenceCaptured": "Assumptions, scenarios and measurement plan."
+    },
+    {
+      "stage": "5. Govern | 25 min",
+      "durationMinutes": null,
+      "candidateAction": "Define approvals, operating cadence, risk response and executive recommendation.",
+      "evidenceCaptured": "RACI, risk register and pitch."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "DM5-01",
+      "dimension": "Decomposition",
+      "weight": 0.05,
+      "critical": false,
+      "observableStandard": "Breaks launch into audience, positioning, proof, journey, channel role, assets, budget, sales handoff, measurement and governance.",
+      "evidenceAndRedFlag": "Evidence: dependency aware launch workplan. Red flag: channel tactics appear before audience and offer choices.",
+      "interviewProbe": "Which dependency is on the critical path?"
+    },
+    {
+      "id": "DM5-02",
+      "dimension": "Decomposition",
+      "weight": 0.05,
+      "critical": false,
+      "observableStandard": "Prioritises a credible minimum launch and stages learning before scale across markets and channels.",
+      "evidenceAndRedFlag": "Evidence: phased eight week plan. Red flag: every audience and channel launches at once.",
+      "interviewProbe": "What would you cut first if creative capacity falls by half?"
+    },
+    {
+      "id": "DM5-03",
+      "dimension": "Context",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Uses customer interviews, product proof, pricing, sales capacity, market differences and brand constraints to shape the plan.",
+      "evidenceAndRedFlag": "Evidence: decisions linked to supplied context. Red flag: generic B2B launch template.",
+      "interviewProbe": "Which customer quote or insight most influenced the launch thesis?"
+    },
+    {
+      "id": "DM5-04",
+      "dimension": "Context",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Identifies gaps in market evidence, benchmark comparability, product readiness and sales follow up and bounds assumptions.",
+      "evidenceAndRedFlag": "Evidence: assumption register with owners. Red flag: benchmark treated as forecast certainty.",
+      "interviewProbe": "Which assumption should be tested before committing most of the budget?"
+    },
+    {
+      "id": "DM5-05",
+      "dimension": "Tool Choice",
+      "weight": 0.08,
+      "critical": false,
+      "observableStandard": "Uses analysis tools for budget and funnel logic, creative tools for bounded production and AI for synthesis or variants with source, brand and claims review.",
+      "evidenceAndRedFlag": "Evidence: task specific tool rationale. Red flag: AI generates strategy, forecast and copy with no independent basis.",
+      "interviewProbe": "Where did AI add the most value, and where was it least trustworthy?"
+    },
+    {
+      "id": "DM5-06",
+      "dimension": "Verification",
+      "weight": 0.07,
+      "critical": true,
+      "observableStandard": "Checks every material product, customer, competitor and performance claim against the supplied proof and date context.",
+      "evidenceAndRedFlag": "Evidence: claims register. Red flag: fabricated testimonial, comparison or result.",
+      "interviewProbe": "Which claim required the strongest qualification?"
+    },
+    {
+      "id": "DM5-07",
+      "dimension": "Verification",
+      "weight": 0.07,
+      "critical": true,
+      "observableStandard": "Reconciles budget, funnel assumptions, capacity, timelines and channel outputs and tests base, downside and upside ranges.",
+      "evidenceAndRedFlag": "Evidence: internally consistent model. Red flag: leads exceed sales capacity or totals exceed budget.",
+      "interviewProbe": "Which assumption drives the downside case?"
+    },
+    {
+      "id": "DM5-08",
+      "dimension": "Correction",
+      "weight": 0.1,
+      "critical": false,
+      "observableStandard": "Corrects positioning, mix, forecast or creative when evidence, capacity or risk review contradicts the first plan.",
+      "evidenceAndRedFlag": "Evidence: material revision with reason. Red flag: only cosmetic changes after challenge.",
+      "interviewProbe": "What did you change after testing the plan as a system?"
+    },
+    {
+      "id": "DM5-09",
+      "dimension": "Judgment",
+      "weight": 0.06,
+      "critical": false,
+      "observableStandard": "Chooses audience and channel concentration based on fit, reach, learning value, cost, capacity and reversibility.",
+      "evidenceAndRedFlag": "Evidence: resource allocation rationale. Red flag: spreads budget thinly for completeness.",
+      "interviewProbe": "Why does one channel receive little or no budget?"
+    },
+    {
+      "id": "DM5-10",
+      "dimension": "Judgment",
+      "weight": 0.06,
+      "critical": false,
+      "observableStandard": "Balances short term pipeline, brand building, evidence quality and operational readiness and defines scale or stop rules.",
+      "evidenceAndRedFlag": "Evidence: staged decision gates. Red flag: success depends on one vanity metric or fixed calendar.",
+      "interviewProbe": "What evidence earns the right to scale in week four?"
+    },
+    {
+      "id": "DM5-11",
+      "dimension": "Escalation",
+      "weight": 0.08,
+      "critical": true,
+      "observableStandard": "Escalates unsupported claims, product readiness, budget overrun, consent, sales capacity or brand risk with a safe recommendation.",
+      "evidenceAndRedFlag": "Evidence: approval map and trigger. Red flag: marketer resolves material product or legal ambiguity alone.",
+      "interviewProbe": "Which launch item cannot proceed without another function's approval?"
+    },
+    {
+      "id": "DM5-12",
+      "dimension": "Domain Execution",
+      "weight": 0.046667,
+      "critical": false,
+      "observableStandard": "Creates a differentiated messaging hierarchy from audience problem through value, proof, objection and call to action.",
+      "evidenceAndRedFlag": "Evidence: coherent message architecture. Red flag: interchangeable AI productivity language.",
+      "interviewProbe": "What makes the proposition specific and believable?"
+    },
+    {
+      "id": "DM5-13",
+      "dimension": "Domain Execution",
+      "weight": 0.046667,
+      "critical": true,
+      "observableStandard": "Produces an integrated channel, content, CRM and sales enablement plan with clear roles, sequencing and handoffs.",
+      "evidenceAndRedFlag": "Evidence: executable calendar and owner map. Red flag: disconnected channel lists with duplicated or conflicting messages.",
+      "interviewProbe": "How does a prospect move from first exposure to sales conversation?"
+    },
+    {
+      "id": "DM5-14",
+      "dimension": "Domain Execution",
+      "weight": 0.046667,
+      "critical": false,
+      "observableStandard": "Builds an auditable budget and funnel model with ranges, unit assumptions, guardrails and decision metrics.",
+      "evidenceAndRedFlag": "Evidence: formula driven forecast. Red flag: precise volume forecast without uncertainty or capacity constraint.",
+      "interviewProbe": "Which number should leadership treat as a range, not a promise?"
+    },
+    {
+      "id": "DM5-15",
+      "dimension": "Client Readiness",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Presents a concise recommendation that makes trade offs, resource asks, risks and next decisions clear to leadership.",
+      "evidenceAndRedFlag": "Evidence: executive pitch. Red flag: activity heavy presentation with no decision request.",
+      "interviewProbe": "What exact approval are you seeking today?"
+    },
+    {
+      "id": "DM5-16",
+      "dimension": "Client Readiness",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Defines owners, approvals, cadence, asset dependencies, sales feedback and change control for the launch.",
+      "evidenceAndRedFlag": "Evidence: RACI and operating rhythm. Red flag: plan relies on unassigned work or silent cross functional assumptions.",
+      "interviewProbe": "Which handoff is most likely to fail?"
+    },
+    {
+      "id": "DM5-17",
+      "dimension": "Trust & Safety",
+      "weight": 0.04,
+      "critical": true,
+      "observableStandard": "Protects customer research and campaign data in AI use and applies consent, targeting and exclusion rules across markets.",
+      "evidenceAndRedFlag": "Evidence: safe data and audience controls. Red flag: personal research data or sensitive targeting used without authority.",
+      "interviewProbe": "Which audience idea should be excluded on trust grounds?"
+    },
+    {
+      "id": "DM5-18",
+      "dimension": "Trust & Safety",
+      "weight": 0.04,
+      "critical": true,
+      "observableStandard": "Maintains truthful claims, clear sponsorship and brand safe creative and avoids manipulative or discriminatory tactics.",
+      "evidenceAndRedFlag": "Evidence: claims and brand QA. Red flag: fake scarcity, undisclosed synthetic endorsement or misleading comparison.",
+      "interviewProbe": "Which creative route might perform but damage long term trust?"
+    }
+  ],
+  "reviewerInstruction": "score only observable evidence from the versioned work sample and interview. Record what is missing. Do not infer motivation, personality, emotion, disability, protected characteristics or future performance beyond the validated role and criterion evidence.",
+  "frameworkVersion": "0.1.0"
+}

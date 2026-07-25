@@ -1,0 +1,214 @@
+{
+  "code": "DM3",
+  "roleFamily": "digital-marketing",
+  "title": "Digital Marketer 3 - Lifecycle CRM and Conversion Journey",
+  "subtitle": "Segmentation, consent, trigger logic and customer value",
+  "purpose": "Assess whether a marketer can improve activation and conversion through relevant lifecycle communication while respecting consent, frequency, brand and measurement integrity.",
+  "customerUse": "Best for customers hiring CRM, email, retention or marketing automation specialists who operate cross functionally with product and customer teams.",
+  "targetLevel": "Client ready junior to mid level lifecycle marketer with approval for messaging and automation changes.",
+  "timebox": "105 minutes plus a 25 minute evidence interview.",
+  "simulation": "A software free trial has healthy sign ups but weak activation, paid conversion and early retention. Existing email sends are broad, frequent and poorly connected to product behaviour.",
+  "sourcePack": "Event dictionary, funnel data, cohort table, consent states, email performance, current journeys, product milestones, customer interviews, pricing, brand voice, support themes and suppression rules.",
+  "approvedTools": "Approved AI assistant, spreadsheet or notebook, provided analytics exports, creative workspace and supplied research pack. No live ad publishing, customer contact or unsupported external claims.",
+  "deliverables": "Lifecycle diagnosis, behavioural segments, journey map, trigger and suppression logic, three message drafts, experiment plan, measurement specification and governance checklist.",
+  "constraints": "Use only consented channels; honour suppression and frequency caps; do not infer sensitive traits; no live send; distinguish behavioural evidence from demographic assumption.",
+  "evidenceRecord": "Capture prompts, material AI outputs, source references, tool actions, corrections, decisions, tests or calculations, final deliverables and a short note explaining where AI was not trusted.",
+  "stages": [
+    {
+      "stage": "1. Define | 15 min",
+      "durationMinutes": null,
+      "candidateAction": "Set activation, conversion and retention outcomes and map the current journey.",
+      "evidenceCaptured": "Metric definitions and drop off map."
+    },
+    {
+      "stage": "2. Segment | 20 min",
+      "durationMinutes": null,
+      "candidateAction": "Create behaviour based segments with eligibility, consent and exclusion rules.",
+      "evidenceCaptured": "Segment logic and size caveats."
+    },
+    {
+      "stage": "3. Design | 30 min",
+      "durationMinutes": null,
+      "candidateAction": "Build triggers, timing, channels, frequency and value exchange around customer milestones.",
+      "evidenceCaptured": "Journey map and decision logic."
+    },
+    {
+      "stage": "4. Create | 20 min",
+      "durationMinutes": null,
+      "candidateAction": "Draft messages in brand voice with clear next action and factual product claims.",
+      "evidenceCaptured": "Message variants, sources and AI corrections."
+    },
+    {
+      "stage": "5. Test | 20 min",
+      "durationMinutes": null,
+      "candidateAction": "Define holdout or comparison, instrumentation, success, guardrails and review cadence.",
+      "evidenceCaptured": "Experiment and QA plan."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "DM3-01",
+      "dimension": "Decomposition",
+      "weight": 0.05,
+      "critical": false,
+      "observableStandard": "Breaks the lifecycle problem into activation definition, behaviour, segment eligibility, consent, message, channel, timing, experiment and operating ownership.",
+      "evidenceAndRedFlag": "Evidence: complete journey workplan. Red flag: starts by writing a generic email sequence.",
+      "interviewProbe": "Which dependency must be resolved before copy is useful?"
+    },
+    {
+      "id": "DM3-02",
+      "dimension": "Decomposition",
+      "weight": 0.05,
+      "critical": false,
+      "observableStandard": "Sequences high confidence onboarding improvements before complex personalisation and keeps a credible minimum journey.",
+      "evidenceAndRedFlag": "Evidence: phased journey. Red flag: large automation build before proving the activation mechanism.",
+      "interviewProbe": "What is the smallest journey that can test your core hypothesis?"
+    },
+    {
+      "id": "DM3-03",
+      "dimension": "Context",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Uses product milestones, customer jobs, pricing, support friction, consent and sales handoff context to define interventions.",
+      "evidenceAndRedFlag": "Evidence: context in segment and message choices. Red flag: best practice cadence copied without product relevance.",
+      "interviewProbe": "Which customer friction is most important to address first?"
+    },
+    {
+      "id": "DM3-04",
+      "dimension": "Context",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Identifies event quality gaps, cohort differences, seasonality and journey overlap that limit conclusions.",
+      "evidenceAndRedFlag": "Evidence: data limitations and clarification list. Red flag: every non converter treated as the same user.",
+      "interviewProbe": "Which event definition must be validated with product analytics?"
+    },
+    {
+      "id": "DM3-05",
+      "dimension": "Tool Choice",
+      "weight": 0.08,
+      "critical": false,
+      "observableStandard": "Uses cohort and event analysis for segmentation and AI for bounded message drafting or variation with source and brand review.",
+      "evidenceAndRedFlag": "Evidence: transparent logic and prompt corrections. Red flag: AI invents personalisation fields or product capability.",
+      "interviewProbe": "Show one generated message element you removed and why."
+    },
+    {
+      "id": "DM3-06",
+      "dimension": "Verification",
+      "weight": 0.07,
+      "critical": true,
+      "observableStandard": "Checks segment logic, event definitions, consent, suppression, timing and overlap using representative user cases.",
+      "evidenceAndRedFlag": "Evidence: eligibility test cases. Red flag: unsubscribed, converted or sales owned contacts remain eligible.",
+      "interviewProbe": "Walk through one user who must not receive the message."
+    },
+    {
+      "id": "DM3-07",
+      "dimension": "Verification",
+      "weight": 0.07,
+      "critical": true,
+      "observableStandard": "Validates message claims, links, personalisation fallbacks, rendering and tracking before any proposed activation.",
+      "evidenceAndRedFlag": "Evidence: QA checklist and source mapping. Red flag: broken variable, unsupported claim or ambiguous unsubscribe path.",
+      "interviewProbe": "Which QA failure could cause the greatest trust damage?"
+    },
+    {
+      "id": "DM3-08",
+      "dimension": "Correction",
+      "weight": 0.1,
+      "critical": false,
+      "observableStandard": "Corrects segment or journey logic when edge case testing reveals overlap, consent conflict or irrelevant messaging.",
+      "evidenceAndRedFlag": "Evidence: revised rules with before and after cases. Red flag: fixes copy but leaves unsafe eligibility.",
+      "interviewProbe": "Which edge case changed your automation logic?"
+    },
+    {
+      "id": "DM3-09",
+      "dimension": "Judgment",
+      "weight": 0.06,
+      "critical": false,
+      "observableStandard": "Balances relevance, reach, frequency, statistical power, product value and customer fatigue.",
+      "evidenceAndRedFlag": "Evidence: frequency and prioritisation rationale. Red flag: more sends treated as the main growth lever.",
+      "interviewProbe": "What signal tells you the journey is becoming intrusive?"
+    },
+    {
+      "id": "DM3-10",
+      "dimension": "Judgment",
+      "weight": 0.06,
+      "critical": false,
+      "observableStandard": "Chooses an experiment design that can separate journey effect from normal maturation and states causal limits.",
+      "evidenceAndRedFlag": "Evidence: holdout or comparison logic. Red flag: open rate improvement claimed as conversion causality.",
+      "interviewProbe": "What conclusion will the experiment not support?"
+    },
+    {
+      "id": "DM3-11",
+      "dimension": "Escalation",
+      "weight": 0.08,
+      "critical": true,
+      "observableStandard": "Escalates consent ambiguity, sensitive segmentation, event reliability, sales conflict or brand claim risk with containment.",
+      "evidenceAndRedFlag": "Evidence: named owner and safe default. Red flag: sends first and resolves governance later.",
+      "interviewProbe": "Draft the escalation for conflicting consent records."
+    },
+    {
+      "id": "DM3-12",
+      "dimension": "Domain Execution",
+      "weight": 0.046667,
+      "critical": false,
+      "observableStandard": "Defines behaviour based segments with precise entry, exit, suppression, priority and re entry rules.",
+      "evidenceAndRedFlag": "Evidence: implementation ready segment table. Red flag: vague engaged or high intent labels.",
+      "interviewProbe": "Can an automation engineer build this segment without guessing?"
+    },
+    {
+      "id": "DM3-13",
+      "dimension": "Domain Execution",
+      "weight": 0.046667,
+      "critical": true,
+      "observableStandard": "Creates useful, concise and brand aligned messages tied to customer value and a single clear next action.",
+      "evidenceAndRedFlag": "Evidence: three message drafts and source support. Red flag: manipulative urgency, generic filler or feature claims without evidence.",
+      "interviewProbe": "Why is this message relevant at this exact moment?"
+    },
+    {
+      "id": "DM3-14",
+      "dimension": "Domain Execution",
+      "weight": 0.046667,
+      "critical": false,
+      "observableStandard": "Defines primary outcome, guardrails, instrumentation, attribution window and operational reporting for the journey.",
+      "evidenceAndRedFlag": "Evidence: measurement specification. Red flag: only delivery, open and click metrics.",
+      "interviewProbe": "Which metric proves customer progress rather than message activity?"
+    },
+    {
+      "id": "DM3-15",
+      "dimension": "Client Readiness",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Explains journey logic, dependencies and expected impact to product, sales, support and compliance stakeholders.",
+      "evidenceAndRedFlag": "Evidence: cross functional handover. Red flag: channel plan ignores ownership conflicts.",
+      "interviewProbe": "What does the sales team need to approve or understand?"
+    },
+    {
+      "id": "DM3-16",
+      "dimension": "Client Readiness",
+      "weight": 0.04,
+      "critical": false,
+      "observableStandard": "Defines journey owner, QA sign off, change log, monitoring and review cadence after launch.",
+      "evidenceAndRedFlag": "Evidence: operating checklist. Red flag: automation has no ongoing owner.",
+      "interviewProbe": "Who is accountable if a trigger starts misfiring?"
+    },
+    {
+      "id": "DM3-17",
+      "dimension": "Trust & Safety",
+      "weight": 0.04,
+      "critical": true,
+      "observableStandard": "Honours consent, suppression, data minimisation and frequency policy and avoids sensitive trait inference.",
+      "evidenceAndRedFlag": "Evidence: eligibility and data rules. Red flag: contact included despite opt out or inferred vulnerability.",
+      "interviewProbe": "Which personalisation idea would cross the line?"
+    },
+    {
+      "id": "DM3-18",
+      "dimension": "Trust & Safety",
+      "weight": 0.04,
+      "critical": true,
+      "observableStandard": "Protects customer level data in analysis and AI use and provides clear, non deceptive choices in messaging.",
+      "evidenceAndRedFlag": "Evidence: aggregated inputs and transparent copy. Red flag: individual event histories entered into an unapproved model.",
+      "interviewProbe": "How would you prepare the dataset safely for AI assistance?"
+    }
+  ],
+  "reviewerInstruction": "score only observable evidence from the versioned work sample and interview. Record what is missing. Do not infer motivation, personality, emotion, disability, protected characteristics or future performance beyond the validated role and criterion evidence.",
+  "frameworkVersion": "0.1.0"
+}
