@@ -268,6 +268,17 @@ export interface EvidenceProfile {
   governanceNote: string;
 }
 
+export interface ScoreAnchor {
+  score: number;
+  anchor: string;
+  interpretation: string;
+}
+
+export interface ScoringModel {
+  frameworkVersion: string;
+  scoreAnchors: ScoreAnchor[];
+}
+
 export interface DataRightsRow {
   id: string;
   candidate_id: string;
