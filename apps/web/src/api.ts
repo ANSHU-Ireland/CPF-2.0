@@ -268,6 +268,14 @@ export interface EvidenceProfile {
   governanceNote: string;
 }
 
+export interface ResponsibleUseAck {
+  version: string;
+  title: string;
+  sections: string[];
+  acknowledged: boolean;
+  acknowledgedAt: string | null;
+}
+
 export interface ScoreAnchor {
   score: number;
   anchor: string;

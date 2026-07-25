@@ -43,10 +43,18 @@ messages never reach clients. 400 request validation · 401/403 authn/z ·
 | GET | /v1/framework/templates | none* | summaries only |
 | GET | /v1/framework/templates/:code | none* | full frozen definition |
 | POST | /v1/scoring/evaluate | none* | stateless; nothing persisted; no outcome vocabulary |
+| GET | /v1/orgs/:orgId/acknowledgements/responsible-use | org_admin, hiring_manager | current-version ack status + document content (CPF-34) |
+| POST | /v1/orgs/:orgId/acknowledgements/responsible-use | org_admin, hiring_manager | records ack; 409 STALE_DOCUMENT_VERSION if version mismatched (CPF-34) |
 
 \* Deliberate scope boundary: only non-personal framework content and stateless
 computation are exposed until the identity module (CPF-40) lands. Every future
 tenant endpoint requires authn + org context + RLS + audit, by standard.
+
+Note: the full tenant-scoped surface (auth, org hiring/candidates/sessions,
+reviews, org read-models, data-rights/legal-holds, candidate portal) is
+implemented and integration-tested (see docs/status/completion-report.md) but
+predates this table's last full sync — tracked as a documentation debt, not an
+implementation gap.
 
 ## Planned surface (Phase 2 — spec-first, see PRD FRs)
 

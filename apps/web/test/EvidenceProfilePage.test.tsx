@@ -1,7 +1,18 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { EvidenceProfilePage } from "../src/pages/EvidenceProfilePage.js";
+
+function ackFixture(acknowledged: boolean) {
+  return {
+    version: "2026-07-25",
+    title: "Responsible use of the Evidence Profile",
+    sections: ["No automated hiring or placement outcome."],
+    acknowledged,
+    acknowledgedAt: acknowledged ? "2026-07-20T09:00:00.000Z" : null,
+  };
+}
 
 function profileFixture() {
   const dimensions = Array.from({ length: 10 }, (_, i) => ({
@@ -49,10 +60,15 @@ describe("EvidenceProfilePage", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders dimension bands, 18 interview probes, and never a hire/reject verdict or numeric score", async () => {
+  it("gates the profile behind a responsible-use acknowledgement, then shows dimension bands, 18 interview probes, and never a hire/reject verdict or numeric score", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({ status: 200, ok: true, json: async () => profileFixture() }),
+      vi.fn().mockImplementation((path: string) => {
+        if (path.includes("/acknowledgements/responsible-use")) {
+          return Promise.resolve({ status: 200, ok: true, json: async () => ackFixture(true) });
+        }
+        return Promise.resolve({ status: 200, ok: true, json: async () => profileFixture() });
+      }),
     );
     renderPage();
 
@@ -68,15 +84,42 @@ describe("EvidenceProfilePage", () => {
     expect(bodyText.includes("3.5")).toBe(false);
   });
 
+  it("shows the responsible-use document and blocks the profile fetch until acknowledged", async () => {
+    const fetchMock = vi.fn().mockImplementation((path: string, init?: RequestInit) => {
+      if (path.includes("/acknowledgements/responsible-use") && init?.method === "POST") {
+        return Promise.resolve({ status: 201, ok: true, json: async () => ackFixture(true) });
+      }
+      if (path.includes("/acknowledgements/responsible-use")) {
+        return Promise.resolve({ status: 200, ok: true, json: async () => ackFixture(false) });
+      }
+      return Promise.resolve({ status: 200, ok: true, json: async () => profileFixture() });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage();
+
+    await screen.findByText("Responsible use of the Evidence Profile");
+    expect(screen.queryByText("Reviewer summary")).toBeNull();
+
+    await userEvent.click(screen.getByRole("button", { name: "I acknowledge and continue" }));
+    const postCall = fetchMock.mock.calls.find((call: unknown[]) => (call[1] as RequestInit | undefined)?.method === "POST");
+    expect(postCall).toBeTruthy();
+    expect(JSON.parse((postCall![1] as RequestInit).body as string)).toEqual({ version: "2026-07-25" });
+  });
+
   it("shows an explanatory state (not a generic error) for 409 REPORT_NOT_ISSUED", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        status: 409,
-        ok: false,
-        json: async () => ({
-          error: { code: "REPORT_NOT_ISSUED", message: "The evidence profile becomes available after the report is issued.", retryable: false },
-        }),
+      vi.fn().mockImplementation((path: string) => {
+        if (path.includes("/acknowledgements/responsible-use")) {
+          return Promise.resolve({ status: 200, ok: true, json: async () => ackFixture(true) });
+        }
+        return Promise.resolve({
+          status: 409,
+          ok: false,
+          json: async () => ({
+            error: { code: "REPORT_NOT_ISSUED", message: "The evidence profile becomes available after the report is issued.", retryable: false },
+          }),
+        });
       }),
     );
     renderPage();

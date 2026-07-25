@@ -143,7 +143,7 @@ run("CPF platform end-to-end", () => {
          login_attempts, data_rights_requests, legal_holds, evidence_ledger_claims,
          criterion_scores, reviews, evidence_events, disclosure_records,
          assessment_sessions, invitations, candidates, job_profiles,
-         retention_policies, org_memberships CASCADE`,
+         retention_policies, org_memberships, employer_acknowledgements CASCADE`,
     );
 
     const orgAId = await createOrg("it-employer-a");
@@ -387,13 +387,50 @@ run("CPF platform end-to-end", () => {
     });
     expect(finalise.statusCode, finalise.body).toBe(200);
 
+    // Profile is gated until the viewer acknowledges responsible-use (CPF-34).
+    const ackStatusBefore = await app.inject({
+      method: "GET",
+      url: `/v1/orgs/${orgA.orgId}/acknowledgements/responsible-use`,
+      headers: authed(hmToken),
+    });
+    expect(ackStatusBefore.statusCode).toBe(200);
+    expect(ackStatusBefore.json().acknowledged).toBe(false);
+    const currentVersion = ackStatusBefore.json().version as string;
+
     // Profile is gated until the report is issued.
     const early = await app.inject({
       method: "GET",
       url: `/v1/orgs/${orgA.orgId}/sessions/${sessionId}/evidence-profile`,
       headers: authed(hmToken),
     });
-    expect(early.statusCode).toBe(409);
+    expect(early.statusCode).toBe(428); // unacknowledged takes precedence over unissued
+    expect(early.json().error.code).toBe("ACKNOWLEDGEMENT_REQUIRED");
+
+    const staleAck = await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${orgA.orgId}/acknowledgements/responsible-use`,
+      headers: authed(hmToken),
+      payload: { version: "not-a-real-version" },
+    });
+    expect(staleAck.statusCode).toBe(409);
+
+    const responsibleUseAck = await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${orgA.orgId}/acknowledgements/responsible-use`,
+      headers: authed(hmToken),
+      payload: { version: currentVersion },
+    });
+    expect(responsibleUseAck.statusCode, responsibleUseAck.body).toBe(201);
+    expect(responsibleUseAck.json().acknowledged).toBe(true);
+
+    const stillEarly = await app.inject({
+      method: "GET",
+      url: `/v1/orgs/${orgA.orgId}/sessions/${sessionId}/evidence-profile`,
+      headers: authed(hmToken),
+    });
+    expect(stillEarly.statusCode).toBe(409); // now report-not-issued, no longer acknowledgement-gated
+    expect(stillEarly.json().error.code).toBe("REPORT_NOT_ISSUED");
+
     const issue = await app.inject({
       method: "POST",
       url: `/v1/orgs/${orgA.orgId}/sessions/${sessionId}/issue-report`,

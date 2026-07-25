@@ -36,6 +36,7 @@ WB = workbook sheet, DIR = directive section, AUD = legacy audit finding).
 - **CPF-25** ✅ Data-rights workflows incl. candidate-raised erasure + legal holds (portal + org side).
 - **CPF-27** ✅ Org read-model endpoints for the web UI: sessions pipeline, member directory, review detail (org/views.ts) — integration-tested incl. tenant isolation.
 - **CPF-36** ✅ Web application: routing/auth/shell/session-restore + all 13 pages implemented against the real API — sign-in, platform employer directory, candidate CRM, template library, job profiles, sessions pipeline, team directory, data rights + legal holds, review queue, reviewer workspace (rubric scoring/preview/finalise), evidence profile (bands/probes, no verdict), candidate entry, and the full public candidate portal (disclosure gate, evidence workspace, real integrity signals, DSR self-service). 42 component/unit tests incl. an 11-test vitest-axe accessibility smoke suite; typechecked/built/browser-smoke-verified against the real API. No stub pages remain.
+- **CPF-34** ✅ Employer responsible-use acknowledgement (Doc T22-P2) — migration 0005 (employer_acknowledgements, RLS+FORCE); GET/POST /v1/orgs/:orgId/acknowledgements/responsible-use; Evidence Profile endpoint returns 428 ACKNOWLEDGEMENT_REQUIRED until the viewer has acked the current document version; version-mismatch re-ack returns 409 STALE_DOCUMENT_VERSION; web interstitial gate before first profile view. Integration-tested (428→ack→200; stale version rejected).
 
 ### Next (Phase 1/2 remainder)
 - **CPF-43** Rate limiting + idempotency middleware. AC: per-token buckets;
@@ -50,7 +51,6 @@ WB = workbook sheet, DIR = directive section, AUD = legacy audit finding).
 - **CPF-31** Evidence-band rule validation (≥2 refs for Strong, etc.) (Doc T12).
 - **CPF-32** Candidate workspace UI with approved-AI panel + auto-save/recovery (WB).
 - **CPF-33** Reviewer calibration records + assignment gating (Doc T22-P1, WB protocol).
-- **CPF-34** Employer responsible-use acknowledgement (Doc T22-P2).
 - **CPF-35** Candidate imports with partial-failure reports + dedupe merge (DIR §9).
 - **CPF-37** Notification delivery (invitation, activation, DSR clocks) via mail adapter.
 

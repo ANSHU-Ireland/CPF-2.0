@@ -13,6 +13,7 @@ import { randomUUID } from "node:crypto";
 import { createPool } from "./db/pool.js";
 import { registerAuthRoutes } from "./modules/auth/routes.js";
 import { registerCandidatePortalRoutes } from "./modules/candidate/portal.js";
+import { registerAcknowledgementRoutes } from "./modules/org/acknowledgements.js";
 import { registerDataRightsRoutes } from "./modules/org/data-rights.js";
 import { registerHiringRoutes } from "./modules/org/hiring.js";
 import { registerReviewRoutes } from "./modules/org/reviews.js";
@@ -180,6 +181,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     registerReviewRoutes(app);
     registerOrgViewsRoutes(app);
     registerDataRightsRoutes(app);
+    registerAcknowledgementRoutes(app);
   } else {
     app.log.info(
       "DATABASE_URL not configured — running in framework-only mode (non-personal catalogue + stateless evaluation). Platform endpoints are disabled.",

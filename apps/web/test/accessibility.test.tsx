@@ -169,19 +169,45 @@ describe("accessibility smoke (vitest-axe)", () => {
   });
 
   it("EvidenceProfilePage has no axe violations", async () => {
-    stubFetchJson(() => ({
-      reviewerSummary: { rationale: "Rationale.", confidence: "high", limitations: "Limitations.", finalisedAt: "2026-07-20T10:00:00.000Z" },
-      accommodationsNote: null,
-      dimensions: [{ key: "d1", name: "Dimension 1", weight: 0.1, achievementIndex: 3.5, band: "Strong evidence", scoredWeight: 0.1, totalWeight: 0.1 }],
-      criticalConcerns: [],
-      decisionSupportRoute: "standard_review",
-      interviewProbes: [{ criterionId: "SE1-01", probe: "Probe text." }],
-      governanceNote: "Governance note.",
-    }));
+    stubFetchJson((path) => {
+      if (path.includes("/acknowledgements/responsible-use")) {
+        return {
+          version: "2026-07-25",
+          title: "Responsible use of the Evidence Profile",
+          sections: ["No automated hiring or placement outcome."],
+          acknowledged: true,
+          acknowledgedAt: "2026-07-20T09:00:00.000Z",
+        };
+      }
+      return {
+        reviewerSummary: { rationale: "Rationale.", confidence: "high", limitations: "Limitations.", finalisedAt: "2026-07-20T10:00:00.000Z" },
+        accommodationsNote: null,
+        dimensions: [{ key: "d1", name: "Dimension 1", weight: 0.1, achievementIndex: 3.5, band: "Strong evidence", scoredWeight: 0.1, totalWeight: 0.1 }],
+        criticalConcerns: [],
+        decisionSupportRoute: "standard_review",
+        interviewProbes: [{ criterionId: "SE1-01", probe: "Probe text." }],
+        governanceNote: "Governance note.",
+      };
+    });
     const { container } = render(
       routerFor("/org/org-1/sessions/s-1/profile", "/org/:orgId/sessions/:sessionId/profile", <EvidenceProfilePage />),
     );
     await screen.findByText("Reviewer summary");
+    await expectNoViolations(container);
+  });
+
+  it("EvidenceProfilePage (responsible-use gate, unacknowledged) has no axe violations", async () => {
+    stubFetchJson(() => ({
+      version: "2026-07-25",
+      title: "Responsible use of the Evidence Profile",
+      sections: ["No automated hiring or placement outcome.", "Decision support only."],
+      acknowledged: false,
+      acknowledgedAt: null,
+    }));
+    const { container } = render(
+      routerFor("/org/org-1/sessions/s-1/profile", "/org/:orgId/sessions/:sessionId/profile", <EvidenceProfilePage />),
+    );
+    await screen.findByText("Responsible use of the Evidence Profile");
     await expectNoViolations(container);
   });
 });

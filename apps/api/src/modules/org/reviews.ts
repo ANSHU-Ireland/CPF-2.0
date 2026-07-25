@@ -16,6 +16,7 @@ import {
 import { appendAudit } from "../../db/audit.js";
 import { withOrgTx, type Queryable } from "../../db/pool.js";
 import { requireOrgRole, sendError } from "../auth/guards.js";
+import { requireResponsibleUseAck } from "./acknowledgements.js";
 
 const AssignReviewSchema = z.object({ reviewerUserId: z.string().uuid() });
 
@@ -431,6 +432,15 @@ export function registerReviewRoutes(app: FastifyInstance): void {
         );
         const sessionRow = session.rows[0];
         if (!sessionRow) return sendError(reply, 404, "NOT_FOUND", "Session not found.", request.id);
+        if (!(await requireResponsibleUseAck(client, orgId, auth.userId))) {
+          return sendError(
+            reply,
+            428,
+            "ACKNOWLEDGEMENT_REQUIRED",
+            "Acknowledge the responsible-use document before viewing an Evidence Profile.",
+            request.id,
+          );
+        }
         if (sessionRow.status !== "report_issued") {
           return sendError(reply, 409, "REPORT_NOT_ISSUED", "The evidence profile becomes available after the report is issued.", request.id);
         }

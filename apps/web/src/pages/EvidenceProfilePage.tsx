@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useParams } from "react-router";
-import { ApiError, api, type EvidenceProfile } from "../api.js";
+import { ApiError, api, type EvidenceProfile, type ResponsibleUseAck } from "../api.js";
 import { Alert, BandBadge, EmptyState, ErrorState, Loading, formatDate } from "../ui.js";
 import { useQuery } from "../useQuery.js";
 
@@ -13,6 +13,61 @@ const ROUTE_LABELS: Record<string, string> = {
 /** Employer-facing Evidence Profile (decision support, never a hire/reject verdict). */
 export function EvidenceProfilePage(): ReactNode {
   const { orgId, sessionId } = useParams();
+  const ack = useQuery(
+    () => api.get<ResponsibleUseAck>(`/v1/orgs/${orgId}/acknowledgements/responsible-use`),
+    [orgId],
+  );
+
+  if (ack.loading) return <Loading label="Loading…" />;
+  if (ack.error) return <ErrorState error={ack.error} onRetry={ack.reload} />;
+  if (!ack.data) return null;
+  if (!ack.data.acknowledged) {
+    return <ResponsibleUseGate orgId={orgId!} document={ack.data} onAcknowledged={ack.reload} />;
+  }
+
+  return <ProfileView orgId={orgId!} sessionId={sessionId!} />;
+}
+
+function ResponsibleUseGate(props: {
+  orgId: string;
+  document: ResponsibleUseAck;
+  onAcknowledged: () => void;
+}): ReactNode {
+  const { orgId, document, onAcknowledged } = props;
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function acknowledge(): Promise<void> {
+    setSubmitting(true);
+    setError(null);
+    try {
+      await api.post(`/v1/orgs/${orgId}/acknowledgements/responsible-use`, { version: document.version });
+      onAcknowledged();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not record acknowledgement.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="stack">
+      <h1>{document.title}</h1>
+      <div className="card stack">
+        {document.sections.map((section, i) => (
+          <p key={i}>{section}</p>
+        ))}
+      </div>
+      {error ? <Alert kind="danger">{error}</Alert> : null}
+      <button className="btn" type="button" onClick={acknowledge} disabled={submitting}>
+        {submitting ? "Recording…" : "I acknowledge and continue"}
+      </button>
+    </div>
+  );
+}
+
+function ProfileView(props: { orgId: string; sessionId: string }): ReactNode {
+  const { orgId, sessionId } = props;
   const profile = useQuery(
     () => api.get<EvidenceProfile>(`/v1/orgs/${orgId}/sessions/${sessionId}/evidence-profile`),
     [orgId, sessionId],
