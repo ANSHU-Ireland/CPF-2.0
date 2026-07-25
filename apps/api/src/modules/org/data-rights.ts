@@ -136,9 +136,12 @@ export function registerDataRightsRoutes(app: FastifyInstance): void {
     const orgId = request.orgId!;
     return withOrgTx(orgId, async (client) => {
       const rows = await client.query(
-        `SELECT id, candidate_id, request_type, status, received_at, due_at, resolved_at,
-                (due_at < now() AND resolved_at IS NULL) AS overdue
-           FROM data_rights_requests ORDER BY due_at ASC LIMIT 200`,
+        `SELECT d.id, d.candidate_id, d.request_type, d.status, d.received_at, d.due_at, d.resolved_at,
+                (d.due_at < now() AND d.resolved_at IS NULL) AS overdue,
+                c.full_name AS candidate_name, c.email AS candidate_email
+           FROM data_rights_requests d
+           JOIN candidates c ON c.id = d.candidate_id
+          ORDER BY d.due_at ASC LIMIT 200`,
       );
       return rows.rows;
     });
@@ -207,6 +210,20 @@ export function registerDataRightsRoutes(app: FastifyInstance): void {
   );
 
   /** Place / release legal holds (BR-10). */
+  app.get("/v1/orgs/:orgId/legal-holds", { preHandler: adminRole }, async (request) => {
+    const orgId = request.orgId!;
+    return withOrgTx(orgId, async (client) => {
+      const rows = await client.query(
+        `SELECT h.id, h.candidate_id, h.reason, h.placed_at, h.released_at,
+                c.full_name AS candidate_name, c.email AS candidate_email
+           FROM legal_holds h
+           JOIN candidates c ON c.id = h.candidate_id
+          ORDER BY h.released_at IS NULL DESC, h.placed_at DESC LIMIT 200`,
+      );
+      return rows.rows;
+    });
+  });
+
   app.post("/v1/orgs/:orgId/legal-holds", { preHandler: adminRole }, async (request, reply) => {
     const schema = z.object({ candidateId: z.string().uuid(), reason: z.string().min(5).max(2_000) });
     const parsed = schema.safeParse(request.body);

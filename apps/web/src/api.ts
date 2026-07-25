@@ -271,12 +271,24 @@ export interface EvidenceProfile {
 export interface DataRightsRow {
   id: string;
   candidate_id: string;
+  candidate_name: string;
+  candidate_email: string;
   request_type: string;
   status: string;
   received_at: string;
   due_at: string;
   resolved_at: string | null;
   overdue: boolean;
+}
+
+export interface LegalHoldRow {
+  id: string;
+  candidate_id: string;
+  candidate_name: string;
+  candidate_email: string;
+  reason: string;
+  placed_at: string;
+  released_at: string | null;
 }
 
 export interface CandidatePortalView {

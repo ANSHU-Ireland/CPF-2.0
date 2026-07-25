@@ -8,6 +8,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./state-machines": {
+      "types": "./dist/state-machines.d.ts",
+      "default": "./dist/state-machines.js"
     }
   },
   "files": [
