@@ -28,6 +28,25 @@ function profileFixture() {
     criterionId: `SE1-${String(i + 1).padStart(2, "0")}`,
     probe: `Probe text ${i + 1}`,
   }));
+  const collaborationProfile = [
+    {
+      dimension: "Verification & scepticism",
+      band: "Strong",
+      claims: [
+        {
+          claim: "Cross-checked the API response against the documented schema before using it.",
+          band: "Strong",
+          limitations: null,
+          counterEvidence: null,
+        },
+      ],
+    },
+    ...Array.from({ length: 6 }, (_, i) => ({
+      dimension: `Dimension lens ${i + 1}`,
+      band: "Not assessed",
+      claims: [] as Array<{ claim: string; band: string; limitations: string | null; counterEvidence: string | null }>,
+    })),
+  ];
   return {
     reviewerSummary: {
       rationale: "Rationale text covering the overall assessment.",
@@ -37,6 +56,7 @@ function profileFixture() {
     },
     accommodationsNote: null,
     dimensions,
+    collaborationProfile,
     criticalConcerns: [{ criterionId: "SE1-05", finalScore: 2 }],
     decisionSupportRoute: "standard_review",
     interviewProbes,
@@ -82,6 +102,36 @@ describe("EvidenceProfilePage", () => {
     expect(/hire/i.test(bodyText)).toBe(false);
     expect(/reject/i.test(bodyText)).toBe(false);
     expect(bodyText.includes("3.5")).toBe(false);
+  });
+
+  it("renders the AI Collaboration Profile section with all 7 dimensions above the scoring dimensions, without leaking evidence references", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((path: string) => {
+        if (path.includes("/acknowledgements/responsible-use")) {
+          return Promise.resolve({ status: 200, ok: true, json: async () => ackFixture(true) });
+        }
+        return Promise.resolve({ status: 200, ok: true, json: async () => profileFixture() });
+      }),
+    );
+    renderPage();
+
+    await screen.findByText("AI Collaboration Profile");
+    expect(screen.getByText("Cross-checked the API response against the documented schema before using it.")).toBeTruthy();
+    expect(screen.getAllByText("Not assessed.").length).toBe(6);
+
+    const collabHeadingIndex = Array.from(document.querySelectorAll("h2")).findIndex(
+      (el) => el.textContent === "AI Collaboration Profile",
+    );
+    const dimensionBandsHeadingIndex = Array.from(document.querySelectorAll("h2")).findIndex(
+      (el) => el.textContent === "Dimension bands",
+    );
+    expect(collabHeadingIndex).toBeGreaterThanOrEqual(0);
+    expect(dimensionBandsHeadingIndex).toBeGreaterThan(collabHeadingIndex);
+
+    const bodyText = document.body.textContent ?? "";
+    expect(bodyText.toLowerCase().includes("evidencereferences")).toBe(false);
+    expect(bodyText.toLowerCase().includes("reviewerconfidence")).toBe(false);
   });
 
   it("shows the responsible-use document and blocks the profile fetch until acknowledged", async () => {

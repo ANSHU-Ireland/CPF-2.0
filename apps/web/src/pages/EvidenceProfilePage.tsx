@@ -108,6 +108,37 @@ function ProfileView(props: { orgId: string; sessionId: string }): ReactNode {
       </Alert>
 
       <div className="card stack">
+        <h2>AI Collaboration Profile</h2>
+        <p className="muted">
+          A narrative lens assembled by the reviewer from Evidence Ledger claims — never a score, never raw
+          evidence.
+        </p>
+        <div className="stack">
+          {data.collaborationProfile.map((d) => (
+            <div key={d.dimension} className="card stack">
+              <div className="spread">
+                <strong>{d.dimension}</strong>
+                <BandBadge band={d.band} />
+              </div>
+              {d.claims.length === 0 ? (
+                <p className="muted">Not assessed.</p>
+              ) : (
+                <ul>
+                  {d.claims.map((claim, i) => (
+                    <li key={i}>
+                      <p>{claim.claim}</p>
+                      {claim.counterEvidence ? <p className="muted">Counter-evidence: {claim.counterEvidence}</p> : null}
+                      {claim.limitations ? <p className="muted">Limitations: {claim.limitations}</p> : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="card stack">
         <h2>Dimension bands</h2>
         <div className="row">
           {data.dimensions.map((d) => (

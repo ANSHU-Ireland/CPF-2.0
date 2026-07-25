@@ -89,6 +89,9 @@ function stubFetch(opts: {
       if (typeof path === "string" && path.includes("/scoring-model")) {
         return Promise.resolve({ status: 200, ok: true, json: async () => SCORING_MODEL });
       }
+      if (typeof path === "string" && path.includes("/claims")) {
+        return Promise.resolve({ status: 200, ok: true, json: async () => [] });
+      }
       return Promise.resolve({ status: 200, ok: true, json: async () => detailResponse(opts.detail) });
     }),
   );

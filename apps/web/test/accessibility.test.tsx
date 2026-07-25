@@ -183,6 +183,10 @@ describe("accessibility smoke (vitest-axe)", () => {
         reviewerSummary: { rationale: "Rationale.", confidence: "high", limitations: "Limitations.", finalisedAt: "2026-07-20T10:00:00.000Z" },
         accommodationsNote: null,
         dimensions: [{ key: "d1", name: "Dimension 1", weight: 0.1, achievementIndex: 3.5, band: "Strong evidence", scoredWeight: 0.1, totalWeight: 0.1 }],
+        collaborationProfile: [
+          { dimension: "Verification & scepticism", band: "Strong", claims: [{ claim: "Claim text.", band: "Strong", limitations: null, counterEvidence: null }] },
+          { dimension: "Problem framing", band: "Not assessed", claims: [] },
+        ],
         criticalConcerns: [],
         decisionSupportRoute: "standard_review",
         interviewProbes: [{ criterionId: "SE1-01", probe: "Probe text." }],

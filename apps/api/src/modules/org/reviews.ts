@@ -3,6 +3,8 @@ import { z } from "zod";
 import {
   AssessmentTemplateSchema,
   ConfidenceLevel,
+  EVIDENCE_BANDS,
+  COLLABORATION_DIMENSIONS,
   evaluate,
   InvalidTransitionError,
   loadScoringModel,
@@ -10,6 +12,7 @@ import {
   reviewMachine,
   sessionMachine,
   type CriterionAssessment,
+  type EvidenceBand,
   type ReviewState,
   type SessionState,
 } from "@cpf/assessment-framework";
@@ -462,6 +465,45 @@ export function registerReviewRoutes(app: FastifyInstance): void {
         );
         const profile = evaluate(template, loadScoringModel(), toAssessments(scores.rows));
         const probes = template.criteria.map((c) => ({ criterionId: c.id, probe: c.interviewProbe }));
+        // AI Collaboration Profile (CPF-30, ADR-0004): the 7-dimension employer-facing
+        // narrative lens assembled from Evidence Ledger claims. Never includes evidence
+        // references, reviewer confidence, or rationale — those stay reviewer-internal.
+        const ledgerClaims = await client.query<{
+          dimension: string;
+          claim: string;
+          evidence_band: string;
+          counter_evidence: string | null;
+          limitations: string | null;
+        }>(
+          "SELECT dimension, claim, evidence_band, counter_evidence, limitations FROM evidence_ledger_claims WHERE review_id = $1 ORDER BY created_at ASC",
+          [reviewRow.id],
+        );
+        const claimsByDimension = new Map<string, typeof ledgerClaims.rows>();
+        for (const row of ledgerClaims.rows) {
+          const bucket = claimsByDimension.get(row.dimension) ?? [];
+          bucket.push(row);
+          claimsByDimension.set(row.dimension, bucket);
+        }
+        const bandRank = (band: string) => {
+          const i = EVIDENCE_BANDS.indexOf(band as EvidenceBand);
+          return i === -1 ? EVIDENCE_BANDS.length : i;
+        };
+        const collaborationProfile = COLLABORATION_DIMENSIONS.map((dimension) => {
+          const claims = claimsByDimension.get(dimension) ?? [];
+          const band = claims.length === 0
+            ? "Not assessed"
+            : claims.reduce((best, c) => (bandRank(c.evidence_band) < bandRank(best) ? c.evidence_band : best), claims[0]!.evidence_band);
+          return {
+            dimension,
+            band,
+            claims: claims.map((c) => ({
+              claim: c.claim,
+              band: c.evidence_band,
+              limitations: c.limitations,
+              counterEvidence: c.counter_evidence,
+            })),
+          };
+        });
         // Employer access is itself evidence (accountability).
         await client.query(
           `INSERT INTO evidence_events (organisation_id, session_id, category, event_type, payload)
@@ -484,6 +526,7 @@ export function registerReviewRoutes(app: FastifyInstance): void {
           },
           accommodationsNote: sessionRow.accommodations_note,
           dimensions: profile.dimensions,
+          collaborationProfile,
           criticalConcerns: profile.criticalConcerns,
           decisionSupportRoute: profile.decisionSupportRoute,
           interviewProbes: probes,

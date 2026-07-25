@@ -388,6 +388,15 @@ run("CPF platform end-to-end", () => {
     });
     expect(deletedClaim.statusCode).toBe(200);
 
+    // A claim that survives to finalisation feeds the AI Collaboration Profile (CPF-30).
+    const persistentClaim = await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${orgA.orgId}/reviews/${reviewId}/claims`,
+      headers: authed(reviewerToken),
+      payload: { ...claimBaseline, evidenceBand: "Strong", evidenceReferences: [evidenceEventId, secondEvidenceEventId] },
+    });
+    expect(persistentClaim.statusCode, persistentClaim.body).toBe(201);
+
     // Unknown criterion rejected against the frozen version.
     const badScore = await app.inject({
       method: "PUT",
@@ -527,9 +536,26 @@ run("CPF platform end-to-end", () => {
     expect(body.interviewProbes).toHaveLength(18);
     expect(body.accommodationsNote).toContain("Extended time");
     expect(body.governanceNote).toContain("No automated hiring or placement outcome");
+
+    // AI Collaboration Profile (CPF-30, ADR-0004): 7-dimension employer-facing lens.
+    expect(body.collaborationProfile).toHaveLength(7);
+    const verificationDim = body.collaborationProfile.find(
+      (d: { dimension: string }) => d.dimension === "Verification & scepticism",
+    );
+    expect(verificationDim.band).toBe("Strong");
+    expect(verificationDim.claims).toHaveLength(1);
+    expect(verificationDim.claims[0].claim).toContain("Cross-checked the API response");
+    expect(verificationDim.claims[0]).not.toHaveProperty("evidenceReferences");
+    expect(verificationDim.claims[0]).not.toHaveProperty("reviewerConfidence");
+    const unassessedDim = body.collaborationProfile.find(
+      (d: { dimension: string }) => d.dimension === "Problem framing",
+    );
+    expect(unassessedDim.band).toBe("Not assessed");
+    expect(unassessedDim.claims).toHaveLength(0);
+
     // The profile never contains outcome vocabulary or raw evidence.
     const raw = profile.body.toLowerCase();
-    for (const forbiddenKey of ['"hire"', '"reject"', '"pass"', '"fail"', '"ranking"', "workspaceevidence"]) {
+    for (const forbiddenKey of ['"hire"', '"reject"', '"pass"', '"fail"', '"ranking"', "workspaceevidence", '"evidencereferences"', '"reviewerconfidence"']) {
       expect(raw).not.toContain(forbiddenKey);
     }
   }, 120_000);

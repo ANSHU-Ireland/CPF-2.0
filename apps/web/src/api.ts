@@ -87,6 +87,7 @@ export const api = {
   get: <T>(path: string, opts?: { auth?: boolean }) => request<T>("GET", path, undefined, opts),
   post: <T>(path: string, body?: unknown, opts?: { auth?: boolean }) => request<T>("POST", path, body, opts),
   put: <T>(path: string, body?: unknown, opts?: { auth?: boolean }) => request<T>("PUT", path, body, opts),
+  delete: <T>(path: string, opts?: { auth?: boolean }) => request<T>("DELETE", path, undefined, opts),
 };
 
 // ---------------------------------------------------------------------------
@@ -262,10 +263,30 @@ export interface EvidenceProfile {
   };
   accommodationsNote: string | null;
   dimensions: DimensionSummary[];
+  collaborationProfile: CollaborationDimensionSummary[];
   criticalConcerns: Array<{ criterionId: string; finalScore: number }>;
   decisionSupportRoute: string;
   interviewProbes: Array<{ criterionId: string; probe: string }>;
   governanceNote: string;
+}
+
+export interface CollaborationDimensionSummary {
+  dimension: string;
+  band: string;
+  claims: Array<{ claim: string; band: string; limitations: string | null; counterEvidence: string | null }>;
+}
+
+export interface Claim {
+  id: string;
+  dimension: string;
+  claim: string;
+  evidenceBand: string;
+  evidenceReferences: string[];
+  counterEvidence: string | null;
+  reviewerConfidence: string;
+  limitations: string | null;
+  rationale: string;
+  createdAt: string;
 }
 
 export interface ResponsibleUseAck {
