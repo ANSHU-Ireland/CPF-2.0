@@ -35,6 +35,11 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Regenerate OpenAPI spec and fail on drift (CPF-44)
+        run: |
+          npm run openapi:generate -w @cpf/api
+          git diff --exit-code -- docs/api/openapi.json
+
       - name: Generate seed (validates framework data → SQL pipeline)
         run: npm run seed:generate
 

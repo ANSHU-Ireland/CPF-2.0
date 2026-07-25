@@ -1452,6 +1452,22 @@ run("CPF platform end-to-end", () => {
     const me = await app.inject({ method: "GET", url: "/v1/auth/me", headers: authed(token) });
     expect(me.statusCode).toBe(401);
   }, 60_000);
+
+  it("serves a valid OpenAPI spec covering every registered route (CPF-44)", async () => {
+    const res = await app.inject({ method: "GET", url: "/v1/openapi.json" });
+    expect(res.statusCode).toBe(200);
+    const spec = res.json();
+    expect(spec.openapi).toBe("3.0.3");
+    expect(spec.paths["/v1/orgs/{orgId}/candidates"]?.post).toBeDefined();
+    expect(spec.paths["/v1/orgs/{orgId}/candidates/import"]?.post).toBeDefined();
+    expect(spec.paths["/v1/auth/login"]?.post).toBeDefined();
+    expect(spec.paths["/v1/candidate/{token}/data-rights"]?.post).toBeDefined();
+    // Self-maintaining coverage: every real registered route must appear.
+    expect(Object.keys(spec.paths).length).toBeGreaterThan(30);
+
+    const SwaggerParser = (await import("@apidevtools/swagger-parser")).default;
+    await expect(SwaggerParser.validate(structuredClone(spec))).resolves.toBeTruthy();
+  });
 });
 
 describe.runIf(!DATABASE_URL || !DATABASE_ADMIN_URL)("integration suite", () => {

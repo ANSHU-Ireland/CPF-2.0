@@ -11,6 +11,7 @@ import {
 import Fastify, { type FastifyError, type FastifyInstance } from "fastify";
 import { randomUUID } from "node:crypto";
 import { createPool } from "./db/pool.js";
+import { buildOpenApiSpec, captureRoutes } from "./openapi.js";
 import { InMemoryRateLimitStore } from "./modules/rate-limit.js";
 import { registerAuthRoutes } from "./modules/auth/routes.js";
 import { registerCandidatePortalRoutes } from "./modules/candidate/portal.js";
@@ -63,6 +64,10 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     genReqId: () => randomUUID(),
     bodyLimit: 262_144, // 256 KiB — framework payloads are small by design
   });
+
+  // CPF-44: capture every route as it's registered so the OpenAPI spec below
+  // can never drift out of coverage with the real route table.
+  const capturedRoutes = captureRoutes(app);
 
   // CSV import bodies (candidate import) arrive as text/csv, not JSON.
   app.addContentTypeParser("text/csv", { parseAs: "string" }, (_req, body, done) => {
@@ -253,6 +258,9 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
       "DATABASE_URL not configured — running in framework-only mode (non-personal catalogue + stateless evaluation). Platform endpoints are disabled.",
     );
   }
+
+  // Public, safe-by-construction (no field-level schemas, no secrets) — see openapi.ts.
+  app.get("/v1/openapi.json", async () => buildOpenApiSpec(capturedRoutes));
 
   return app;
 }
