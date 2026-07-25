@@ -12,6 +12,10 @@
     "./state-machines": {
       "types": "./dist/state-machines.d.ts",
       "default": "./dist/state-machines.js"
+    },
+    "./collaboration-profile": {
+      "types": "./dist/collaboration-profile.d.ts",
+      "default": "./dist/collaboration-profile.js"
     }
   },
   "files": [

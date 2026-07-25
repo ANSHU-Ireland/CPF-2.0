@@ -258,6 +258,12 @@ run("CPF platform end-to-end", () => {
       payload: { category: "workspace_evidence", eventType: "prompt_submitted", payload: { text: "Plan the change" } },
     });
     expect(good.statusCode, good.body).toBe(201);
+    const good2 = await app.inject({
+      method: "POST",
+      url: `/v1/candidate/${candidateToken}/events`,
+      payload: { category: "workspace_evidence", eventType: "diff_applied", payload: { text: "Ran the test suite before committing." } },
+    });
+    expect(good2.statusCode, good2.body).toBe(201);
     const integrity = await app.inject({
       method: "POST",
       url: `/v1/candidate/${candidateToken}/events`,
@@ -316,9 +322,71 @@ run("CPF platform end-to-end", () => {
       headers: authed(reviewerToken),
     });
     expect(evidence.statusCode).toBe(200);
-    expect(evidence.json().workspaceEvidence).toHaveLength(1);
+    expect(evidence.json().workspaceEvidence).toHaveLength(2);
     expect(evidence.json().integrityContext.signals).toHaveLength(1);
     expect(evidence.json().integrityContext.guidance).toContain("never determine an outcome");
+    const [evidenceEventId, secondEvidenceEventId] = evidence.json().workspaceEvidence.map((e: { id: string }) => e.id) as string[];
+
+    // Evidence Ledger claims (CPF-21): a fake evidence reference is rejected.
+    const claimBaseline = {
+      dimension: "Verification & scepticism",
+      claim: "Cross-checked the API response against the documented schema before using it.",
+      reviewerConfidence: "high",
+      rationale: "Observed explicit verification step in the transcript before integration.",
+    };
+    const fakeRefClaim = await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${orgA.orgId}/reviews/${reviewId}/claims`,
+      headers: authed(reviewerToken),
+      payload: { ...claimBaseline, evidenceBand: "Clear", evidenceReferences: ["999999999"] },
+    });
+    expect(fakeRefClaim.statusCode).toBe(422);
+    expect(fakeRefClaim.json().error.code).toBe("UNKNOWN_EVIDENCE_REFERENCE");
+
+    // Strong band with only 1 reference is rejected by the structural developer rule.
+    const understrengthClaim = await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${orgA.orgId}/reviews/${reviewId}/claims`,
+      headers: authed(reviewerToken),
+      payload: { ...claimBaseline, evidenceBand: "Strong", evidenceReferences: [evidenceEventId] },
+    });
+    expect(understrengthClaim.statusCode).toBe(422);
+    expect(understrengthClaim.json().error.code).toBe("BAND_RULE_VIOLATION");
+
+    // A well-formed claim is created, listed, updated, and deleted while the review is open.
+    const createdClaim = await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${orgA.orgId}/reviews/${reviewId}/claims`,
+      headers: authed(reviewerToken),
+      payload: { ...claimBaseline, evidenceBand: "Clear", evidenceReferences: [evidenceEventId] },
+    });
+    expect(createdClaim.statusCode, createdClaim.body).toBe(201);
+    const claimId = createdClaim.json().id as string;
+    expect(createdClaim.json().dimension).toBe("Verification & scepticism");
+
+    const listedClaims = await app.inject({
+      method: "GET",
+      url: `/v1/orgs/${orgA.orgId}/reviews/${reviewId}/claims`,
+      headers: authed(reviewerToken),
+    });
+    expect(listedClaims.statusCode).toBe(200);
+    expect(listedClaims.json()).toHaveLength(1);
+
+    const updatedClaim = await app.inject({
+      method: "PUT",
+      url: `/v1/orgs/${orgA.orgId}/reviews/${reviewId}/claims/${claimId}`,
+      headers: authed(reviewerToken),
+      payload: { ...claimBaseline, evidenceBand: "Strong", evidenceReferences: [evidenceEventId, secondEvidenceEventId] },
+    });
+    expect(updatedClaim.statusCode, updatedClaim.body).toBe(200);
+    expect(updatedClaim.json().evidenceBand).toBe("Strong");
+
+    const deletedClaim = await app.inject({
+      method: "DELETE",
+      url: `/v1/orgs/${orgA.orgId}/reviews/${reviewId}/claims/${claimId}`,
+      headers: authed(reviewerToken),
+    });
+    expect(deletedClaim.statusCode).toBe(200);
 
     // Unknown criterion rejected against the frozen version.
     const badScore = await app.inject({
@@ -386,6 +454,16 @@ run("CPF platform end-to-end", () => {
       },
     });
     expect(finalise.statusCode, finalise.body).toBe(200);
+
+    // Claims are frozen once the review is finalised.
+    const frozenClaim = await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${orgA.orgId}/reviews/${reviewId}/claims`,
+      headers: authed(reviewerToken),
+      payload: { ...claimBaseline, evidenceBand: "Clear", evidenceReferences: [evidenceEventId] },
+    });
+    expect(frozenClaim.statusCode).toBe(409);
+    expect(frozenClaim.json().error.code).toBe("STATE_CONFLICT");
 
     // Profile is gated until the viewer acknowledges responsible-use (CPF-34).
     const ackStatusBefore = await app.inject({
