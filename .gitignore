@@ -23,6 +23,9 @@ coverage/
 # Generated seed output (regenerate with npm run seed:generate)
 packages/db/seed/generated/
 
+# Generated SBOM artifact (regenerate with npx @cyclonedx/cyclonedx-npm; CI uploads it)
+sbom.cdx.json
+
 # OS / editor noise
 .DS_Store
 Thumbs.db
