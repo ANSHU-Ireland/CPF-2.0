@@ -34,6 +34,19 @@ const ConfigSchema = z.object({
    * end-to-end even in test mode, just against a wider window.
    */
   RATE_LIMIT_TEST_MULTIPLIER: z.coerce.number().positive().default(1),
+  /**
+   * Exposes GET /metrics (Prometheus text format). Off by default — even
+   * when enabled, the endpoint must only be reachable from an internal
+   * network (reverse proxy / firewall), never the public internet; there is
+   * no application-level auth on it. See docs/operations/operations-and-runbooks.md.
+   */
+  METRICS_ENABLED: z.coerce.boolean().default(false),
+  /**
+   * OTEL_EXPORTER_OTLP_ENDPOINT is read directly from process.env by
+   * src/observability/tracing.ts (standard OpenTelemetry env-var convention,
+   * not part of this app-specific schema). Tracing is a no-op whenever it's
+   * unset — see that module for details.
+   */
 });
 
 export type AppConfig = z.infer<typeof ConfigSchema>;

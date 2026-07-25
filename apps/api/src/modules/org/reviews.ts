@@ -17,6 +17,7 @@ import {
   type SessionState,
 } from "@cpf/assessment-framework";
 import { appendAudit } from "../../db/audit.js";
+import { evidenceEventsTotal } from "../../observability/metrics.js";
 import { withOrgTx, type Queryable } from "../../db/pool.js";
 import { requireOrgRole, sendError } from "../auth/guards.js";
 import { requireResponsibleUseAck } from "./acknowledgements.js";
@@ -510,6 +511,7 @@ export function registerReviewRoutes(app: FastifyInstance): void {
              VALUES ($1, $2, 'reviewer_decision', 'review_finalised', $3)`,
             [orgId, row.session_id, JSON.stringify({ reviewId, confidence: parsed.data.confidence })],
           );
+          evidenceEventsTotal.inc();
           await appendAudit(client, {
             organisationId: orgId,
             actorUserId: auth.userId,
@@ -665,6 +667,7 @@ export function registerReviewRoutes(app: FastifyInstance): void {
            VALUES ($1, $2, 'employer_access', 'evidence_profile_viewed', $3)`,
           [orgId, sessionId, JSON.stringify({ viewedBy: auth.userId })],
         );
+        evidenceEventsTotal.inc();
         await appendAudit(client, {
           organisationId: orgId,
           actorUserId: auth.userId,

@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import type { Queryable } from "./pool.js";
+import { auditAppendsTotal } from "../observability/metrics.js";
+import { currentTraceId } from "../observability/tracing.js";
 
 /**
  * Tamper-evident audit log writer (ADR-0006).
@@ -49,13 +51,17 @@ export async function appendAudit(client: Queryable, entry: AuditEntry): Promise
   const occurredAt = new Date().toISOString();
   // Normalise to the exact shape verifyAuditChain reads back from the database:
   // absent fields become explicit nulls so write- and read-side hashes agree.
+  // traceId (Step 33) is attached whenever a span is active when this is
+  // called; undefined is dropped consistently by both JSON.stringify and
+  // canonicalise below, so it never appears (and never breaks hash
+  // recomputation) when tracing isn't configured.
   const normalised = {
     organisationId: entry.organisationId ?? null,
     actorUserId: entry.actorUserId ?? null,
     action: entry.action,
     entityType: entry.entityType,
     entityId: entry.entityId ?? null,
-    metadata: entry.metadata ?? {},
+    metadata: { ...(entry.metadata ?? {}), traceId: currentTraceId() },
     occurredAt,
   };
   const entryHash = computeEntryHash(prevHash, normalised);
@@ -75,6 +81,7 @@ export async function appendAudit(client: Queryable, entry: AuditEntry): Promise
       entryHash,
     ],
   );
+  auditAppendsTotal.inc();
 }
 
 /** Recompute the full chain and report the first break, if any. */

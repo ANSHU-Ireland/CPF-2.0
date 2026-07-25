@@ -23,6 +23,7 @@ import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { appendAudit } from "../db/audit.js";
 import { withTx, withOrgTx, createPool, closePool, type Queryable } from "../db/pool.js";
+import { retentionRunLastTimestamp, retentionRunDurationSeconds } from "../observability/metrics.js";
 
 const TERMINAL_SESSION_STATUSES = ["report_issued", "withdrawn", "expired", "invalidated"] as const;
 
@@ -133,6 +134,7 @@ async function anonymiseEligibleCandidates(client: Queryable, evidenceRetentionD
 }
 
 export async function runRetentionSweep(options: RetentionSweepOptions = {}): Promise<RetentionRunReport> {
+  const startedAtMs = Date.now();
   const execute = options.execute ?? false;
   const cap = options.maxDeletionsPerOrgPerCategory ?? 5_000;
 
@@ -207,7 +209,10 @@ export async function runRetentionSweep(options: RetentionSweepOptions = {}): Pr
     orgReports.push(report);
   }
 
-  return { executedAt: new Date().toISOString(), dryRun: !execute, orgs: orgReports };
+  const finishedAt = new Date();
+  retentionRunLastTimestamp.set(finishedAt.getTime() / 1000);
+  retentionRunDurationSeconds.set((Date.now() - startedAtMs) / 1000);
+  return { executedAt: finishedAt.toISOString(), dryRun: !execute, orgs: orgReports };
 }
 
 const isMainModule = Boolean(process.argv[1]) && fileURLToPath(import.meta.url) === resolve(process.argv[1]!);

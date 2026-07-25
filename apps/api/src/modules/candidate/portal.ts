@@ -13,6 +13,7 @@ import { appendAudit } from "../../db/audit.js";
 import { getPool, withOrgTx, type Queryable } from "../../db/pool.js";
 import { sendError } from "../auth/guards.js";
 import { runIdempotent, IdempotencyConflictError } from "../idempotency.js";
+import { evidenceEventsTotal } from "../../observability/metrics.js";
 import {
   CANDIDATE_SUBMITTABLE_CATEGORIES,
   DSR_DUE_DAYS,
@@ -311,6 +312,7 @@ export function registerCandidatePortalRoutes(app: FastifyInstance): void {
            VALUES ($1, $2, $3::evidence_event_category, $4, $5)`,
           [ctx.organisationId, row.id, category, eventType, JSON.stringify(payload)],
         );
+        evidenceEventsTotal.inc();
         return { accepted: true as const };
       });
       if (!outcome.accepted) {

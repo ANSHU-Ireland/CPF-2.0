@@ -96,3 +96,34 @@ Org scope: org_admin toggles feature flag → gateway refuses invocations →
 reviewer UI falls back to human-only (always functional). Platform scope:
 platform_admin disables provider/model → in-flight requests time out safely.
 Verify: invocation log shows zero calls post-switch.
+
+## Observability (Delivery Plan Step 33)
+
+- **Logs**: Fastify's built-in pino logger (`req`/`res`/`responseTime` on
+  every request, redacting `authorization`/`cookie` headers). When
+  OpenTelemetry tracing is active (see below), every request's child logger
+  additionally carries a `traceId` field, so a log line can always be
+  correlated with a trace even though the public error contract's
+  `requestId` (a UUID, always present) is a separate identifier space.
+- **Metrics**: `GET /metrics` (Prometheus text exposition format), off by
+  default — set `METRICS_ENABLED=true` to turn it on. **Only ever expose
+  this on an internal-only listener** (reverse proxy / firewall rule); there
+  is no application-level authentication on the endpoint, by design
+  (standard Prometheus practice — the network boundary is the control).
+  Includes: `http_request_duration_seconds` (histogram, labelled by method,
+  route *pattern* — not raw URL, to keep cardinality bounded — and status
+  code), `cpf_evidence_events_total`, `cpf_audit_appends_total`,
+  `cpf_retention_run_last_timestamp_seconds` /
+  `cpf_retention_run_duration_seconds` (updated at the end of every
+  retention sweep, dry-run or executed), plus prom-client's Node.js/process
+  default metrics.
+- **Tracing**: OpenTelemetry, no-op unless `OTEL_EXPORTER_OTLP_ENDPOINT` is
+  set (standard OTel env var — point it at an OTLP/HTTP collector to
+  enable). Deliberately narrow instrumentation (HTTP + `pg` only, not the
+  full `auto-instrumentations-node` meta-package) to keep dependency weight
+  and version-churn risk down. When active, the current span's trace id is
+  merged into every audit-log entry's `metadata.traceId` (via the single
+  `appendAudit` chokepoint every module writes through) as well as into
+  request logs, so an audit entry, a log line, and a trace can all be
+  correlated for one event.
+

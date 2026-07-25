@@ -1,11 +1,20 @@
-import { buildApp } from "./app.js";
-import { loadConfig } from "./config.js";
-import { closePool } from "./db/pool.js";
+import { startTracingIfConfigured } from "./observability/tracing.js";
+
+// Started before any other local module is imported (dynamic imports below)
+// so OpenTelemetry's HTTP/pg instrumentation — when OTEL_EXPORTER_OTLP_ENDPOINT
+// is configured — patches those modules before this process's first real use
+// of them. A no-op when unset (see tracing.ts).
+await startTracingIfConfigured();
+
+const { buildApp } = await import("./app.js");
+const { loadConfig } = await import("./config.js");
+const { closePool } = await import("./db/pool.js");
 
 const config = loadConfig();
 const m = config.RATE_LIMIT_TEST_MULTIPLIER;
 const app = buildApp({
   ...(config.DATABASE_URL !== undefined ? { databaseUrl: config.DATABASE_URL } : {}),
+  metricsEnabled: config.METRICS_ENABLED,
   rateLimit: {
     generalCapacity: Math.round(1000 * m),
     generalRefillPerSecond: (1000 / 60) * m,

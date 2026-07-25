@@ -25,6 +25,8 @@ import { registerHiringRoutes } from "./modules/org/hiring.js";
 import { registerReviewRoutes } from "./modules/org/reviews.js";
 import { registerOrgViewsRoutes } from "./modules/org/views.js";
 import { registerPlatformRoutes } from "./modules/platform/routes.js";
+import { httpRequestDuration, registry } from "./observability/metrics.js";
+import { currentTraceId } from "./observability/tracing.js";
 
 const API_VERSION = "0.1.0";
 
@@ -49,6 +51,12 @@ export interface BuildAppOptions {
    * redaction behaviour can be observed. Never set outside tests.
    */
   loggerStream?: Writable;
+  /**
+   * Exposes GET /metrics (Prometheus text format). Off by default — see
+   * config.ts's METRICS_ENABLED and the operations runbook for the network-
+   * boundary requirement (internal-only, no application-level auth here).
+   */
+  metricsEnabled?: boolean;
 }
 
 /**
@@ -95,7 +103,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   };
   const rateLimitStore = new InMemoryRateLimitStore();
   app.addHook("onRequest", async (request, reply) => {
-    if (request.url === "/health") return;
+    if (request.url === "/health" || request.url === "/metrics") return;
     const strict = request.url.startsWith("/v1/auth/") || request.url.startsWith("/v1/candidate/");
     const authHeader = request.headers.authorization;
     const bearer = authHeader?.startsWith("Bearer ") ? authHeader.slice("Bearer ".length) : null;
@@ -115,6 +123,30 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
         },
       });
     }
+  });
+
+  // Observability (Step 33): bind the active OpenTelemetry trace id (when
+  // tracing is configured — see observability/tracing.ts) onto this
+  // request's child logger, so every log line can be correlated with a
+  // trace even though the public error contract's `requestId` stays a
+  // separate, always-present UUID (unrelated identifier spaces, both logged
+  // together here for correlation).
+  app.addHook("onRequest", async (request) => {
+    const traceId = currentTraceId();
+    if (traceId) request.log = request.log.child({ traceId });
+  });
+
+  // Records request latency (Step 33) by route *pattern* (not raw URL, to
+  // keep label cardinality bounded) and status code for GET /metrics below.
+  app.addHook("onResponse", async (request, reply) => {
+    httpRequestDuration.observe(
+      {
+        method: request.method,
+        route: request.routeOptions.url ?? request.url,
+        status_code: String(reply.statusCode),
+      },
+      reply.elapsedTime / 1000,
+    );
   });
 
   // Baseline security headers on every response.
@@ -191,6 +223,15 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     mode: platformMode ? "platform" : "framework-only",
     time: new Date().toISOString(),
   }));
+
+  // Off by default (Step 33) — see BuildAppOptions.metricsEnabled above.
+  // Internal-only by network topology; no application-level auth here.
+  if (options.metricsEnabled) {
+    app.get("/metrics", async (_request, reply) => {
+      reply.header("content-type", registry.contentType);
+      return registry.metrics();
+    });
+  }
 
   app.get("/v1/framework/scoring-model", async () => loadScoringModel());
 
