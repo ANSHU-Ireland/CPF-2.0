@@ -222,7 +222,7 @@ export function DataRightsPage(): ReactNode {
                 <th scope="col">Status</th>
                 <th scope="col">Received</th>
                 <th scope="col">Due</th>
-                <th scope="col"></th>
+                <th scope="col"><span className="skip-link">Actions</span></th>
               </tr>
             </thead>
             <tbody>
@@ -277,7 +277,7 @@ export function DataRightsPage(): ReactNode {
                 <th scope="col">Reason</th>
                 <th scope="col">Placed</th>
                 <th scope="col">Status</th>
-                <th scope="col"></th>
+                <th scope="col"><span className="skip-link">Actions</span></th>
               </tr>
             </thead>
             <tbody>

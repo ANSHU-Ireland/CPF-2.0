@@ -94,7 +94,7 @@ export function TemplatesPage(): ReactNode {
                 <th scope="col">Role family</th>
                 <th scope="col">Level</th>
                 <th scope="col">Criteria</th>
-                <th scope="col"></th>
+                <th scope="col"><span className="skip-link">Actions</span></th>
               </tr>
             </thead>
             <tbody>

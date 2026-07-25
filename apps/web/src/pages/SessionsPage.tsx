@@ -171,7 +171,7 @@ export function SessionsPage(): ReactNode {
                 <th scope="col">Review</th>
                 <th scope="col">Accommodations</th>
                 <th scope="col">Submitted</th>
-                <th scope="col"></th>
+                <th scope="col"><span className="skip-link">Actions</span></th>
               </tr>
             </thead>
             <tbody>

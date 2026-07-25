@@ -13,7 +13,7 @@ export function Loading({ label = "Loading…" }: { label?: string }): ReactNode
 export function EmptyState({ title, hint }: { title: string; hint?: string }): ReactNode {
   return (
     <div className="state-block">
-      <h3>{title}</h3>
+      <h2>{title}</h2>
       {hint ? <p className="muted">{hint}</p> : null}
     </div>
   );
@@ -33,7 +33,7 @@ export function ErrorState({
     apiError?.message ?? "Something went wrong. If this keeps happening, contact support.";
   return (
     <div className="state-block" role="alert">
-      <h3>{permission ? "You do not have access to this" : "Could not load this view"}</h3>
+      <h2>{permission ? "You do not have access to this" : "Could not load this view"}</h2>
       <p className="muted">{message}</p>
       {apiError ? (
         <p className="muted">

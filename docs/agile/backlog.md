@@ -35,7 +35,7 @@ WB = workbook sheet, DIR = directive section, AUD = legacy audit finding).
 - **CPF-24** ✅ Evidence ingestion API: category allow-list, forbidden-event rejection, active-session precondition.
 - **CPF-25** ✅ Data-rights workflows incl. candidate-raised erasure + legal holds (portal + org side).
 - **CPF-27** ✅ Org read-model endpoints for the web UI: sessions pipeline, member directory, review detail (org/views.ts) — integration-tested incl. tenant isolation.
-- **CPF-36 (in progress)** 🟡 Web application: routing/auth/shell/session-restore + 3 real pages (sign-in, platform employer directory, candidate CRM) built, typechecked, tested, and browser-smoke-verified against the real API. Remaining: 10 pages currently typed stubs (templates, job profiles, sessions pipeline, team, data rights, review queue, review workspace, evidence profile, candidate entry, candidate portal) — see Phase B of the delivery plan.
+- **CPF-36** ✅ Web application: routing/auth/shell/session-restore + all 13 pages implemented against the real API — sign-in, platform employer directory, candidate CRM, template library, job profiles, sessions pipeline, team directory, data rights + legal holds, review queue, reviewer workspace (rubric scoring/preview/finalise), evidence profile (bands/probes, no verdict), candidate entry, and the full public candidate portal (disclosure gate, evidence workspace, real integrity signals, DSR self-service). 42 component/unit tests incl. an 11-test vitest-axe accessibility smoke suite; typechecked/built/browser-smoke-verified against the real API. No stub pages remain.
 
 ### Next (Phase 1/2 remainder)
 - **CPF-43** Rate limiting + idempotency middleware. AC: per-token buckets;

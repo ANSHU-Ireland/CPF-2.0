@@ -1,22 +1,23 @@
 # Completion Report — CPF Enterprise Ecosystem
 
-Reporting date: 2026-07-25 (second build cycle) · Reporting standard:
-directive §21 (no premature completion claims). This is the authoritative
-status document.
+Reporting date: 2026-07-25 (third build cycle — Phase B web portals) ·
+Reporting standard: directive §21 (no premature completion claims). This is
+the authoritative status document.
 
 ## Release judgement
 
 **NOT READY** for real candidate processing — by explicit gate, not by defect:
-the legal-review register (LR-01…LR-04) and the remaining Phase-2 candidate/
-reviewer/employer **user interfaces** block pilot. The backend platform
-executes the complete hiring workflow end-to-end with every governance
-guardrail enforced and integration-tested against real PostgreSQL. A web
-application has been started (routing, auth, shell, 3 of 13 pages real; 10
-are typed "under construction" stubs, never dead links) but is not yet
-feature-complete. No compliance certification is claimed. No real candidate
-data has ever entered this system.
+the legal-review register (LR-01…LR-04, notably the LR-04 candidate-facing
+notice content, which the portal currently renders as labelled DRAFT
+placeholder copy) blocks pilot. The backend platform executes the complete
+hiring workflow end-to-end with every governance guardrail enforced and
+integration-tested against real PostgreSQL. **All 13 planned web application
+pages are now implemented against the real API (no mock data, no stubs
+remaining)** — employer portal, reviewer workspace, candidate portal, and
+platform administration. No compliance certification is claimed. No real
+candidate data has ever entered this system.
 
-## Fully implemented and tested — 98 automated tests green (verified locally 2026-07-25)
+## Fully implemented and tested — 134 automated tests green, 1 intentionally skipped (verified locally 2026-07-25)
 
 | Layer | Evidence |
 |---|---|
@@ -26,7 +27,7 @@ data has ever entered this system.
 | **Identity primitives** (scrypt w/ OWASP params, opaque hashed tokens, RFC 6238 TOTP against RFC test vectors, base32) | 17 identity tests |
 | **Framework API** (catalogue, stateless evaluation, error contract, security headers) | 8 API tests |
 | **Full platform integration on PostgreSQL 17** — everything below, incl. 3 new read-model endpoints (org sessions pipeline, org users directory, review detail) | **15 integration tests** |
-| **Web application scaffold** (routing, session-restore, role-based redirects, auth context, accessible UI primitives, 3 real pages: sign-in, platform employer directory, candidate CRM; 10 typed stub pages for the rest) | 6 component/unit tests + a live browser smoke test |
+| **Web application** — all 13 pages real, no stubs remaining: sign-in, platform employer directory, candidate CRM, assessment template library, job profiles, sessions pipeline, team directory, data rights + legal holds, review queue, reviewer workspace (rubric scoring/preview/finalise), evidence profile (bands/probes, no verdict), candidate entry, and the full public candidate portal (disclosure gate, evidence workspace, real integrity signals, DSR self-service) | 42 component tests (incl. 11 vitest-axe accessibility smoke tests across the app's core screens) + a live browser smoke test |
 
 Integration-verified end-to-end journeys (real HTTP → real database, restricted
 non-superuser role):
@@ -74,6 +75,22 @@ request in the API access log returned 200; no console/network errors.
 3. Reply-inside-transaction race (client could outrun COMMIT) → commit-before-
    send rule, applied to auth + portal routes, recorded in ADR-0007.
 4. Enum-cast ambiguity in DSR transitions → explicit `::data_rights_status`.
+5. **(Phase B)** Importing any symbol from `@cpf/assessment-framework`'s root
+   barrel in browser code pulled in a `node:fs` (`readFileSync`) dependency
+   transitively, breaking `vite build` (invisible to `tsc --noEmit`) — fixed
+   with a pure `./state-machines` subpath export; documented in repo memory
+   as a standing convention for future pure-module additions.
+6. **(Phase B, caught by its own accessibility test)** The Evidence Profile
+   page's "no verdict" disclaimer copy literally contained the words "hire"
+   and "reject", which its own `/hire/i`/`/reject/i` regex test correctly
+   flagged — reworded to remove outcome vocabulary entirely.
+7. **(Phase B, caught by the new vitest-axe accessibility smoke suite)**
+   Five data tables had an empty, unlabelled trailing `<th>` for the actions
+   column (axe `empty-table-header`) — fixed with visually-hidden "Actions"
+   text. The shared `EmptyState`/`ErrorState` primitives rendered `<h3>`
+   directly under a page's `<h1>` with no `<h2>` in between (axe
+   `heading-order`) on every page's empty/error state — both now render
+   `<h2>`, fixing the violation across every page that uses them.
 
 ## Implemented, awaiting first CI execution
 
@@ -84,19 +101,18 @@ environment).
 
 ## Designed but not implemented (honest boundary)
 
-- **Most user interface pages** — complete specifications in docs/design;
-  10 of 13 planned pages are typed stubs only (assessment library, job
-  profiles, sessions pipeline, team directory, data rights, review queue,
-  review workspace, evidence profile, candidate entry, candidate portal —
-  each renders an accessible "under construction" state, never a dead link).
-  Real: sign-in, platform employer directory, candidate CRM.
 - Notifications/e-mail delivery (invitation + activation tokens are returned
   to the operator for out-of-band delivery), file uploads, candidate imports,
   retention sweep scheduler (erasure service exists and is tested; the cron
   wrapper is CPF-26), rate-limiting middleware (CPF-43), OpenAPI generation
   (CPF-44), reviewer calibration gating (CPF-33), AI Collaboration Profile
   7-dimension rendering (CPF-30), evidence-band rule validation (CPF-31).
-- AI features: **none exist**; gateway is a governed design (ADR-0005).
+- AI features: **none exist**; gateway is a governed design (ADR-0005). The
+  candidate portal explicitly states no AI assistant is configured, rather
+  than simulating one.
+- Candidate-portal notice content is DRAFT placeholder copy pending LR-04
+  legal review — the UI labels this honestly rather than presenting
+  unreviewed text as final.
 
 ## Planned (later phases)
 
@@ -140,15 +156,23 @@ measurement.
 5. Supplementary PDFs (pitch deck, readiness reports) not machine-extracted
    this cycle (A-07).
 6. English-only framework content v0.1.0.
+7. Accessibility verification is automated smoke-level (vitest-axe across 11
+   representative page renders, colour-contrast rule disabled because
+   happy-dom does not apply real computed styles) plus reliance on native
+   semantic HTML (buttons, `<dialog>`, radio groups, `<details>`) for keyboard
+   operability — this is not a substitute for a manual assistive-technology
+   audit before pilot.
 
 ## Verification evidence (commands, this machine, 2026-07-25)
 
 - `npm run typecheck` — clean, strict, all workspaces (including @cpf/web).
-- `npm test` — 98 passed / 0 failed / 1 intentionally-skipped placeholder
-  (framework 60, identity 17, API 8+15, web 6) with `DATABASE_URL` (restricted
-  role) + `DATABASE_ADMIN_URL` set.
+- `npm test` — 134 passed / 0 failed / 1 intentionally-skipped placeholder
+  (framework 60, identity 17, API 15+1 skip, web 42) with `DATABASE_URL`
+  (restricted role) + `DATABASE_ADMIN_URL` set.
 - `npm audit` — 0 vulnerabilities (across all workspaces incl. @cpf/web).
-- `npx vite build` (@cpf/web) — succeeds, 104 modules.
+- `npm run build` — succeeds (framework + identity + API build ordering).
+- `npx vite build` (@cpf/web) — succeeds, 105 modules.
 - Live boot: platform mode, bootstrap → login → org creation over HTTP.
 - Live web smoke test: sign-in → real API data rendered → session-restore →
-  stub-page/404/sign-out all correct (browser-automated, see above).
+  stub-page/404/sign-out all correct (browser-automated, see above; predates
+  the stub pages being replaced with real implementations this cycle).

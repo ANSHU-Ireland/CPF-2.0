@@ -30,7 +30,7 @@ export function ReviewQueuePage(): ReactNode {
                 <th scope="col">Status</th>
                 <th scope="col">Submitted</th>
                 <th scope="col">Assigned</th>
-                <th scope="col"></th>
+                <th scope="col"><span className="skip-link">Actions</span></th>
               </tr>
             </thead>
             <tbody>
