@@ -163,6 +163,17 @@ const ROUTE_TABLE: RouteSpec[] = [
     roles: ["org_admin", "hiring_manager", "reviewer", "learning_admin", "support_agent"],
     body: { assessments: [] },
   },
+  {
+    method: "GET",
+    path: "/v1/orgs/:orgId/learning/enrollments/:enrollmentId",
+    roles: ["org_admin", "hiring_manager", "reviewer", "learning_admin", "support_agent"],
+  },
+  {
+    method: "GET",
+    path: "/v1/orgs/:orgId/learning/my-skills-profile",
+    roles: ["org_admin", "hiring_manager", "reviewer", "learning_admin", "support_agent"],
+  },
+  { method: "GET", path: "/v1/orgs/:orgId/learning/manager-view", roles: ["org_admin", "learning_admin"] },
   { method: "GET", path: "/v1/orgs/:orgId/audit/search", roles: ["org_admin"] },
   { method: "GET", path: "/v1/orgs/:orgId/audit/export", roles: ["org_admin"] },
   { method: "GET", path: "/v1/orgs/:orgId/retention-policy", roles: ["org_admin"] },

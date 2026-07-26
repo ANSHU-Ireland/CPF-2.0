@@ -245,6 +245,24 @@ run("CPF learning APIs (Step 41)", () => {
     });
     expect(afterProgress.json()[0].status).toBe("in_progress");
 
+    // Enrolment detail (Step 42): the learner's own lesson content, with
+    // this enrolment's completion flag joined in per lesson.
+    const detail = await app.inject({
+      method: "GET",
+      url: `/v1/orgs/${orgId}/learning/enrollments/${enrollmentId}`,
+      headers: authed(learnerToken),
+    });
+    expect(detail.statusCode, detail.body).toBe(200);
+    expect(detail.json().course.modules[0].lessons[0]).toMatchObject({ id: lessonId, completed: true });
+
+    // Another learner cannot read this enrolment's detail either.
+    const detailForbidden = await app.inject({
+      method: "GET",
+      url: `/v1/orgs/${orgId}/learning/enrollments/${enrollmentId}`,
+      headers: authed(hmToken),
+    });
+    expect(detailForbidden.statusCode, detailForbidden.body).toBe(403);
+
     // A different learner cannot touch this enrolment.
     const forbidden = await app.inject({
       method: "POST",
@@ -260,6 +278,18 @@ run("CPF learning APIs (Step 41)", () => {
     });
     expect(complete.statusCode, complete.body).toBe(200);
     expect(complete.json().status).toBe("completed");
+
+    // Skills profile (Step 42): the just-completed course now appears in the
+    // learner's own self-view.
+    const skillsAfterComplete = await app.inject({
+      method: "GET",
+      url: `/v1/orgs/${orgId}/learning/my-skills-profile`,
+      headers: authed(learnerToken),
+    });
+    expect(skillsAfterComplete.statusCode, skillsAfterComplete.body).toBe(200);
+    expect(skillsAfterComplete.json().completedCourses).toContainEqual(
+      expect.objectContaining({ id: courseId, title: "Intro to Structured Interviewing" }),
+    );
 
     // Terminal: completing again is a state conflict, not a silent no-op.
     const completeAgain = await app.inject({
@@ -302,6 +332,102 @@ run("CPF learning APIs (Step 41)", () => {
       user_id: learnerUserId,
       template_code: "SE1",
     });
+
+    // The practice attempt's profile also appears in the skills profile.
+    const skillsAfterAttempt = await app.inject({
+      method: "GET",
+      url: `/v1/orgs/${orgId}/learning/my-skills-profile`,
+      headers: authed(learnerToken),
+    });
+    expect(skillsAfterAttempt.statusCode, skillsAfterAttempt.body).toBe(200);
+    expect(skillsAfterAttempt.json().practiceAttempts).toContainEqual(
+      expect.objectContaining({ template_code: "SE1" }),
+    );
+  });
+
+  it("manager-view aggregates completion by course with a k-anonymity floor of 5 enrolled learners", async () => {
+    const course = await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${orgId}/learning/courses`,
+      headers: authed(adminToken),
+      payload: { title: "Manager View Course" },
+    });
+    const courseId = course.json().id as string;
+    await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${orgId}/learning/courses/${courseId}/modules`,
+      headers: authed(adminToken),
+      payload: { title: "Module 1", position: 0 },
+    }).then(async (m) => {
+      await app.inject({
+        method: "POST",
+        url: `/v1/orgs/${orgId}/learning/modules/${m.json().id}/lessons`,
+        headers: authed(adminToken),
+        payload: { title: "Lesson 1", position: 0 },
+      });
+    });
+    await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${orgId}/learning/courses/${courseId}/publish`,
+      headers: authed(adminToken),
+    });
+
+    // Only 3 learners enrolled — below the floor, so the cell is suppressed.
+    const someLearners: string[] = [];
+    for (let i = 0; i < 3; i++) {
+      const id = await createActiveUser(`manager-view-learner-${i}-${RUN_ID}@it.cpf.test`);
+      await addMembership(orgId, id, "reviewer");
+      someLearners.push(id);
+    }
+    await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${orgId}/learning/enrollments`,
+      headers: authed(adminToken),
+      payload: { courseId, userIds: someLearners },
+    });
+
+    const suppressedView = await app.inject({
+      method: "GET",
+      url: `/v1/orgs/${orgId}/learning/manager-view`,
+      headers: authed(adminToken),
+    });
+    expect(suppressedView.statusCode, suppressedView.body).toBe(200);
+    const suppressedRow = suppressedView
+      .json()
+      .courses.find((c: { courseId: string }) => c.courseId === courseId);
+    expect(suppressedRow).toMatchObject({ suppressed: true, enrolledCount: null, completedCount: null });
+
+    // A hiring_manager cannot see this admin-only view.
+    const hmForbidden = await app.inject({
+      method: "GET",
+      url: `/v1/orgs/${orgId}/learning/manager-view`,
+      headers: authed(hmToken),
+    });
+    expect(hmForbidden.statusCode, hmForbidden.body).toBe(403);
+
+    // Enrol 2 more learners (5 total) — now at the floor, so the cell shows.
+    const moreLearners: string[] = [];
+    for (let i = 0; i < 2; i++) {
+      const id = await createActiveUser(`manager-view-learner-more-${i}-${RUN_ID}@it.cpf.test`);
+      await addMembership(orgId, id, "reviewer");
+      moreLearners.push(id);
+    }
+    await app.inject({
+      method: "POST",
+      url: `/v1/orgs/${orgId}/learning/enrollments`,
+      headers: authed(adminToken),
+      payload: { courseId, userIds: moreLearners },
+    });
+
+    const visibleView = await app.inject({
+      method: "GET",
+      url: `/v1/orgs/${orgId}/learning/manager-view`,
+      headers: authed(adminToken),
+    });
+    const visibleRow = visibleView
+      .json()
+      .courses.find((c: { courseId: string }) => c.courseId === courseId);
+    expect(visibleRow).toMatchObject({ suppressed: false, enrolledCount: 5, completedCount: 0 });
   });
 
   it("pathway authoring: create pathway, link a course, bulk-enrol into the pathway", async () => {

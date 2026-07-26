@@ -507,3 +507,109 @@ export interface CandidatePortalView {
   notices: Record<string, string>;
   session: { id: string; status: string } | null;
 }
+
+// ---------------------------------------------------------------------------
+// Learning module (Delivery Plan Steps 41-42)
+// ---------------------------------------------------------------------------
+
+export interface CourseSummary {
+  id: string;
+  title: string;
+  status: "draft" | "published" | "archived";
+  published_at: string | null;
+  created_at: string;
+}
+
+export interface LessonRow {
+  id: string;
+  course_module_id: string;
+  title: string;
+  content_markdown?: string;
+  position: number;
+  practice_template_code: string | null;
+  completed?: boolean;
+}
+
+export interface ModuleRow {
+  id: string;
+  title: string;
+  position: number;
+  lessons: LessonRow[];
+}
+
+export interface CourseDetail {
+  id: string;
+  title: string;
+  description: string;
+  status: "draft" | "published" | "archived";
+  published_checksum: string | null;
+  published_at: string | null;
+  modules: ModuleRow[];
+}
+
+export interface PathwaySummary {
+  id: string;
+  title: string;
+  status: "draft" | "published" | "archived";
+  created_at: string;
+}
+
+export interface PathwayCourseRow {
+  position: number;
+  id: string;
+  title: string;
+  status: string;
+}
+
+export interface PathwayDetail {
+  id: string;
+  title: string;
+  description: string;
+  status: "draft" | "published" | "archived";
+  courses: PathwayCourseRow[];
+}
+
+export interface EnrollmentSummary {
+  id: string;
+  status: "enrolled" | "in_progress" | "completed" | "withdrawn";
+  course_id: string | null;
+  pathway_id: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  title: string;
+}
+
+export interface EnrollmentDetail {
+  id: string;
+  status: "enrolled" | "in_progress" | "completed" | "withdrawn";
+  startedAt: string | null;
+  completedAt: string | null;
+  course: (Omit<CourseDetail, "description" | "published_checksum"> & { modules: ModuleRow[] }) | null;
+  pathway: PathwayDetail | null;
+}
+
+export interface SkillsProfile {
+  completedCourses: Array<{ id: string; title: string; completed_at: string }>;
+  completedPathways: Array<{ id: string; title: string; completed_at: string }>;
+  practiceAttempts: Array<{
+    id: string;
+    template_code: string;
+    created_at: string;
+    profile: EvaluationPreview;
+  }>;
+}
+
+export interface ManagerViewCourseRow {
+  courseId: string;
+  title: string;
+  suppressed: boolean;
+  enrolledCount: number | null;
+  completedCount: number | null;
+  completionRate: number | null;
+}
+
+export interface ManagerView {
+  courses: ManagerViewCourseRow[];
+  suppressionNote: string;
+}
+
