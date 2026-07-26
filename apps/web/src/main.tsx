@@ -28,6 +28,10 @@ import { LearnerHomePage } from "./pages/LearnerHomePage.js";
 import { LessonPlayerPage } from "./pages/LessonPlayerPage.js";
 import { ManagerViewPage } from "./pages/ManagerViewPage.js";
 import { SkillsProfilePage } from "./pages/SkillsProfilePage.js";
+import { IntelligenceSettingsPage } from "./pages/IntelligenceSettingsPage.js";
+import { PainPointsPage } from "./pages/PainPointsPage.js";
+import { InsightsDashboardPage } from "./pages/InsightsDashboardPage.js";
+import { TransparencyPage } from "./pages/TransparencyPage.js";
 import "./styles.css";
 
 /** Root ("/") redirects to sign-in or a role-appropriate landing page. */
@@ -101,6 +105,10 @@ function AppRoutes(): ReactNode {
         <Route path={routes.orgLearningLesson(":orgId", ":enrollmentId", ":lessonId")} element={<LessonPlayerPage />} />
         <Route path={routes.orgLearningManagerView(":orgId")} element={<ManagerViewPage />} />
         <Route path={routes.orgLearningSkillsProfile(":orgId")} element={<SkillsProfilePage />} />
+        <Route path={routes.orgIntelligenceSettings(":orgId")} element={<IntelligenceSettingsPage />} />
+        <Route path={routes.orgPainPoints(":orgId")} element={<PainPointsPage />} />
+        <Route path={routes.orgIntelligenceInsights(":orgId")} element={<InsightsDashboardPage />} />
+        <Route path={routes.orgIntelligenceTransparency(":orgId")} element={<TransparencyPage />} />
       </Route>
       <Route path="/" element={<RootRedirect />} />
       <Route path="*" element={<NotFoundPage />} />

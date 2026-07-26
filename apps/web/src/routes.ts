@@ -30,4 +30,8 @@ export const routes = {
     `/org/${orgId}/learning/enrollments/${enrollmentId}/lessons/${lessonId}`,
   orgLearningManagerView: (orgId: string) => `/org/${orgId}/learning/manager-view`,
   orgLearningSkillsProfile: (orgId: string) => `/org/${orgId}/learning/skills-profile`,
+  orgIntelligenceSettings: (orgId: string) => `/org/${orgId}/intelligence/settings`,
+  orgPainPoints: (orgId: string) => `/org/${orgId}/intelligence/pain-points`,
+  orgIntelligenceInsights: (orgId: string) => `/org/${orgId}/intelligence/insights`,
+  orgIntelligenceTransparency: (orgId: string) => `/org/${orgId}/intelligence/transparency`,
 };

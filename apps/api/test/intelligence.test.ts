@@ -196,6 +196,16 @@ run("CPF workforce intelligence APIs (Step 43)", () => {
     expect(painPoint.json().error.code).toBe("INTELLIGENCE_NOT_ENABLED");
   });
 
+  it("the any-role status probe reflects org opt-in without requiring admin", async () => {
+    const before = await app.inject({
+      method: "GET",
+      url: `/v1/orgs/${orgId}/intelligence/status`,
+      headers: authed(hmToken),
+    });
+    expect(before.statusCode, before.body).toBe(200);
+    expect(before.json()).toEqual({ module: "intelligence", enabled: false });
+  });
+
   it("enabling without a works-council acknowledgement is rejected (422)", async () => {
     const res = await app.inject({
       method: "PUT",
@@ -228,6 +238,13 @@ run("CPF workforce intelligence APIs (Step 43)", () => {
     });
     expect(settings.json().worksCouncilAcknowledgedAt).toBeTruthy();
     expect(settings.json().enabledAt).toBeTruthy();
+
+    const status = await app.inject({
+      method: "GET",
+      url: `/v1/orgs/${orgId}/intelligence/status`,
+      headers: authed(hmToken),
+    });
+    expect(status.json()).toEqual({ module: "intelligence", enabled: true });
   });
 
   it("submits an anonymous pain-point report that stores no user id, and a named one that does", async () => {
