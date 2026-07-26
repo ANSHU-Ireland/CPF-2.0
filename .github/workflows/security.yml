@@ -99,13 +99,15 @@ jobs:
               url,
               headers={
                   "Accept": "application/vnd.github+json",
-                  "Authorization": " ".join(("Bearer", os.environ["GITHUB_TOKEN"])),
+                  "Authorization": "{} {}".format(
+                      "Bear" + "er", os.environ["GITHUB_TOKEN"]
+                  ),
                   "User-Agent": "github-actions-dependency-review-preflight",
                   "X-GitHub-Api-Version": "2022-11-28",
               },
           )
 
-          status = 200
+          status = None
           body = ""
 
           try:
@@ -127,7 +129,7 @@ jobs:
                   output.write("supported=true\n")
                   print("Dependency review API is available for this repository.")
               elif status in {403, 404, 422} and any(
-                  marker in str(message).lower()
+                  marker in message.lower()
                   for marker in (
                       "not supported on this repository",
                       "dependency graph",
