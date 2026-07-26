@@ -1,8 +1,8 @@
-import { useMemo, type ReactNode } from "react";
+import { Fragment, useMemo, type ReactNode } from "react";
 import { NavLink, Navigate, Outlet, useNavigate, useParams } from "react-router";
 import { useAuth } from "./auth.js";
 import { routes } from "./routes.js";
-import { api } from "./api.js";
+import { api, type OrgModulesView } from "./api.js";
 import { useQuery } from "./useQuery.js";
 
 /**
@@ -62,6 +62,21 @@ export function Shell(): ReactNode {
   );
   const intelligenceEntitled = intelligenceStatus.data !== null;
   const intelligenceEnabled = intelligenceStatus.data?.enabled === true;
+
+  // Plugin/module registry (Delivery Plan Step 46): the ONE piece of
+  // genuinely dynamic/data-driven nav rendering in this file — every module
+  // built before this step keeps its own hand-wired nav block above, by
+  // deliberate scope decision (see module-registry.ts's doc comment).
+  // Future modules need only register a manifest server-side; no Shell.tsx
+  // change is required for them to appear here.
+  const canSeeModules = Boolean(activeOrgId) && rolesInOrg.size > 0;
+  const registeredModules = useQuery(
+    () =>
+      canSeeModules
+        ? api.get<OrgModulesView>(`/v1/orgs/${activeOrgId}/modules`)
+        : Promise.resolve(null),
+    [activeOrgId, canSeeModules],
+  );
 
   if (!authenticated) return <Navigate to={routes.login()} replace />;
 
@@ -143,6 +158,17 @@ export function Shell(): ReactNode {
             <NavLink to={routes.platformAnalytics()}>Platform analytics</NavLink>
           </>
         ) : null}
+        {activeOrgId && registeredModules.data
+          ? registeredModules.data.modules.map((module) => (
+              <Fragment key={module.key}>
+                {module.navigation.map((entry) => (
+                  <NavLink key={entry.path} to={entry.path.replace(":orgId", activeOrgId)}>
+                    {entry.label}
+                  </NavLink>
+                ))}
+              </Fragment>
+            ))
+          : null}
         <NavLink to={routes.templates()}>Assessment library</NavLink>
         <div className="nav-footer">
           <p className="muted" style={{ padding: "0 var(--space-2)" }}>

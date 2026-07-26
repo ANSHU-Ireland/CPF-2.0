@@ -34,7 +34,9 @@ import { registerLearningRoutes } from "./modules/org/learning.js";
 import { registerReviewRoutes } from "./modules/org/reviews.js";
 import { registerOrgViewsRoutes } from "./modules/org/views.js";
 import { registerUsageRoutes } from "./modules/org/usage.js";
+import { registerWorkflowInsightsRoutes } from "./modules/org/workflow-insights.js";
 import { registerPlatformAnalyticsRoutes } from "./modules/platform/analytics.js";
+import { registerModuleRegistryRoutes } from "./modules/platform/module-registry.js";
 import { registerPlatformRoutes } from "./modules/platform/routes.js";
 import { registerSupportAccessRoutes } from "./modules/platform/support-access.js";
 import { registerSubscriptionRoutes } from "./modules/platform/subscriptions.js";
@@ -301,6 +303,8 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     registerLearningRoutes(app);
     registerIntelligenceRoutes(app);
     registerAiGatewayRoutes(app, { ...DEFAULT_AI_GATEWAY_MODULE_OPTIONS, ...options.aiGateway });
+    registerModuleRegistryRoutes(app);
+    registerWorkflowInsightsRoutes(app);
     registerSupportAccessRoutes(app);
     registerComplianceRoutes(app);
     registerOrgAnalyticsRoutes(app);

@@ -141,6 +141,11 @@ request in the API access log returned 200; no console/network errors.
 1. **Workforce Intelligence backend (Step 43, CPF-62):** migration 0018 adds `pain_point_reports` (`submitted_by` nullable by design, for genuine anonymous submission) and `org_intelligence_settings` (a per-org opt-in toggle, default off, requiring a fresh works-council/employee-representative acknowledgement on every enable). Every route carries two independent gates: plan-based module entitlement, and a new org-level opt-in gate (`403 INTELLIGENCE_NOT_ENABLED` until an admin has switched it on). Three admin-only aggregate reads (pain-point themes by category, skills-gap by course, AI-adoption participation) are suppressed below a new k-anonymity floor of 8 (higher than the `5` used elsewhere), and no endpoint ever exposes an individual employee's report text, learning record, or adoption status. Two scope reductions were honestly disclosed rather than fabricated: no "ai-literacy tag" concept exists in the schema, so AI-adoption is reinterpreted as practice-attempt participation (documented inline via a `definition` field); and a token-cost endpoint returns an honest `{available:false, reason}` since the AI gateway's usage-logging table (Step 45) doesn't exist yet.
 2. **Workforce Intelligence UI (Step 44, MILESTONE):** `IntelligenceSettingsPage` (org-admin enable/disable flow, client-side enforcing both a representative name and an explicit acknowledgement checkbox on top of the API's own validation), `PainPointsPage` (any org role submits a report, with an anonymous option; admins additionally see the aggregate themes view), `InsightsDashboardPage` (skills-gap, AI-adoption, and token-cost, every section showing its own definition and a data-freshness note), and an employee-facing `TransparencyPage` listing exactly what is, and is never, collected — sourced from two exported constants so tests can assert the "never collected" list renders verbatim. Suppressed cells throughout render as literal text (`"‹8 — suppressed"`), never a blank or a fabricated number. A small new `GET .../intelligence/status` route (open to all org roles, entitlement-gated only) supports nav visibility for non-admin roles, distinct from the admin-only settings route.
 
+## Ninth build cycle additions (Steps 45–46, disclosed per §21)
+
+1. **AI gateway (Step 45, ADR-0005, CPF-64):** a new pure-domain package `@cpf/ai-gateway` (no DB/HTTP dependency, matching the framework/identity packages' convention) implements provider-agnostic completion orchestration: kill-switch check (platform, then org) → allow-listed model pinning → PII redaction (email + known-candidate-name, categories only ever logged) → per-use-case daily token/cost budget → bounded-retry timeout → an invocation record the caller persists. Migration 0019 adds `model_invocations` (full ledger: provider, model+version, prompt version, tokens, cost, latency, region, redaction categories, error code) and `org_ai_settings` (a per-org opt-in switch, default off). The single product feature behind all this — a reviewer-assist suggestion endpoint — is gated by THREE independent switches (org plan entitlement, org opt-in, platform-level env-var switch) and, even when all three are on, only ever reads `evidence_events` rows tagged `workspace_evidence` — integrity signals are structurally excluded from ever reaching a model, not merely redacted. No AI provider is configured in this environment; the endpoint honestly returns `503 AI_PROVIDER_NOT_CONFIGURED` by default. An evaluation harness (`runEvaluation()`) scores suggestions against a golden set of 5 explicitly-labelled synthetic fixtures (precision=1.00, recall=1.00 in this run) — a process gate documented in `docs/ai-governance/ai-governance.md`, not itself a runtime enforcement mechanism.
+2. **Plugin/module framework + Workflow Insights (Step 46, MILESTONE, CPF-65):** a new `apps/api/src/modules/platform/module-registry.ts` defines a zod-validated manifest shape (`{key, name, version, requiredEntitlement, navigation[], permissions[]}`) and a hand-written, boot-time-validated `MODULE_REGISTRY` array — deliberately a typed list, not a dynamic/remote-code loader, per the plan's own risk mitigation. `GET /v1/orgs/:orgId/modules` returns only the entitled modules' manifests, and the web `Shell.tsx` renders each one's navigation entries dynamically — the first genuinely data-driven nav block in the application (every pre-existing module's nav entry remains hand-wired, an explicitly disclosed scope decision to avoid a risky refactor of already-shipped, already-tested surface). The framework's first module, **Workflow Insights**, is proposal-only automation at autonomy level 2: `POST .../workflow-insights/generate` derives candidate actions from pain-point themes and learning-completion gaps (reusing Step 43's k=8 anonymity floor so it never surfaces a signal intelligence.ts itself would suppress), and the only two state-mutating routes in the entire module are `approve`/`dismiss` — each records nothing more than a human decision and an audit-trail entry. No execution, automation, or downstream action of any kind is wired to any proposal in this build.
+
 ## Defects found and fixed by our own tests this cycle (disclosed per §21)
 
 1. Superuser DB connection silently bypassed RLS → dedicated `cpf_app`/`cpf_api`
@@ -191,13 +196,19 @@ environment).
 
 - File uploads beyond the CSV import path (e.g. resume/document attachments) —
   no binary upload/malware-scanning pipeline exists yet; not required until one is added.
-- Learning module core (data model, APIs, UI) and Workforce Intelligence
-  (backend + UI) are now implemented (Steps 40–44); AI gateway and
-  plugin/module framework remain not started (Steps 45–46).
+- Learning module core (data model, APIs, UI), Workforce Intelligence
+  (backend + UI), the AI gateway (Step 45), and the plugin/module framework
+  plus its first module Workflow Insights (Step 46) are now implemented.
+  Only Phase I's launch gates (Steps 47–50: accessibility audit, load
+  verification, compliance/investor pack finalisation, final acceptance
+  sweep) remain.
 - Actual staging/production provisioning — the runbook and container are
   ready (Steps 31–32), but real provisioning needs cloud credentials this
   environment doesn't have (USER-GATED).
-- AI features: **none exist**; gateway is a governed design (ADR-0005). The
+- AI features: the gateway (ADR-0005) and its single reviewer-assist endpoint
+  are implemented and tested (Step 45), but no AI provider is configured in
+  this environment, so the endpoint honestly returns
+  `503 AI_PROVIDER_NOT_CONFIGURED` rather than fabricating a call. The
   candidate portal explicitly states no AI assistant is configured, rather
   than simulating one.
 - Candidate-portal notice content is DRAFT placeholder copy pending LR-04
