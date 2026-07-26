@@ -18,7 +18,7 @@ import {
 } from "@cpf/assessment-framework";
 import { appendAudit } from "../../db/audit.js";
 import { withOrgTx, type Queryable } from "../../db/pool.js";
-import { requireOrgRole, sendError } from "../auth/guards.js";
+import { requireModuleEntitlement, requireOrgRole, sendError } from "../auth/guards.js";
 import { requireResponsibleUseAck } from "./acknowledgements.js";
 import { checkReviewerCalibrated } from "./calibration.js";
 
@@ -46,10 +46,10 @@ const FinaliseSchema = z.object({
   limitations: z.string().min(10).max(20_000),
 });
 
-const reviewerRole = requireOrgRole("reviewer");
-const managerRoles = requireOrgRole("org_admin", "hiring_manager");
-const adminRole = requireOrgRole("org_admin");
-const scoreWriteRole = requireOrgRole("reviewer", "org_admin");
+const reviewerRole = [requireOrgRole("reviewer"), requireModuleEntitlement("assessments")];
+const managerRoles = [requireOrgRole("org_admin", "hiring_manager"), requireModuleEntitlement("assessments")];
+const adminRole = [requireOrgRole("org_admin"), requireModuleEntitlement("assessments")];
+const scoreWriteRole = [requireOrgRole("reviewer", "org_admin"), requireModuleEntitlement("assessments")];
 
 const AssignSecondReviewerSchema = z.object({ reviewerUserId: z.string().uuid() });
 

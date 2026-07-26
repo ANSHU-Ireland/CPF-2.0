@@ -211,6 +211,14 @@ export interface CalibrationRecord {
   expiresAt: string | null;
 }
 
+export interface OrgUsage {
+  plan: { code: string } | null;
+  usage: {
+    activeAssessments: { used: number; limit: number | null };
+    orgUsers: { used: number; limit: number | null };
+  };
+}
+
 export interface CandidateRow {
   id: string;
   email: string;

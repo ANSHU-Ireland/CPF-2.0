@@ -1,6 +1,6 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { useParams } from "react-router";
-import { api, type CalibrationRecord, type OrgUser } from "../api.js";
+import { api, type CalibrationRecord, type OrgUsage, type OrgUser } from "../api.js";
 import { Alert, EmptyState, ErrorState, Field, Loading, Modal, StatusPill } from "../ui.js";
 import { useQuery } from "../useQuery.js";
 
@@ -73,6 +73,9 @@ export function TeamPage(): ReactNode {
 
       {users.loading ? <Loading /> : null}
       {users.error ? <ErrorState error={users.error} onRetry={users.reload} /> : null}
+
+      <UsageCard orgId={orgId!} />
+
       {users.data ? (
         users.data.length === 0 ? (
           <EmptyState title="No team members yet" hint="Invite your first colleague to begin." />
@@ -175,6 +178,40 @@ export function TeamPage(): ReactNode {
           onSaved={() => setCalibrationVersion((v) => v + 1)}
         />
       ) : null}
+    </div>
+  );
+}
+
+/** Plan usage vs. limits (Delivery Plan Step 36) — shown on the Team page since it's org-admin territory alongside membership management. */
+function UsageCard({ orgId }: { orgId: string }): ReactNode {
+  const usage = useQuery(() => api.get<OrgUsage>(`/v1/orgs/${orgId}/usage`), [orgId]);
+
+  if (usage.loading) return <Loading />;
+  if (usage.error) return null; // non-admin callers get 403 here; fail silent rather than alarming
+  if (!usage.data || !("usage" in usage.data)) return null;
+
+  const { plan, usage: u } = usage.data;
+
+  function formatLimit(used: number, limit: number | null): string {
+    return limit === null ? `${used} (no limit)` : `${used} / ${limit}`;
+  }
+
+  return (
+    <div className="card stack">
+      <div className="spread">
+        <h2>Plan &amp; usage</h2>
+        <span className="pill">{plan ? plan.code : "No plan assigned"}</span>
+      </div>
+      <div className="row">
+        <div>
+          <span className="muted">Active assessments</span>
+          <p>{formatLimit(u.activeAssessments.used, u.activeAssessments.limit)}</p>
+        </div>
+        <div>
+          <span className="muted">Team members</span>
+          <p>{formatLimit(u.orgUsers.used, u.orgUsers.limit)}</p>
+        </div>
+      </div>
     </div>
   );
 }

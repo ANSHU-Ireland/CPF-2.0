@@ -22,8 +22,10 @@ import { registerCalibrationRoutes } from "./modules/org/calibration.js";
 import { registerClaimsRoutes } from "./modules/org/claims.js";
 import { registerDataRightsRoutes } from "./modules/org/data-rights.js";
 import { registerHiringRoutes } from "./modules/org/hiring.js";
+import { registerLearningRoutes } from "./modules/org/learning.js";
 import { registerReviewRoutes } from "./modules/org/reviews.js";
 import { registerOrgViewsRoutes } from "./modules/org/views.js";
+import { registerUsageRoutes } from "./modules/org/usage.js";
 import { registerPlatformRoutes } from "./modules/platform/routes.js";
 import { registerSubscriptionRoutes } from "./modules/platform/subscriptions.js";
 
@@ -279,6 +281,8 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     registerAcknowledgementRoutes(app);
     registerClaimsRoutes(app);
     registerCalibrationRoutes(app);
+    registerUsageRoutes(app);
+    registerLearningRoutes(app);
   } else {
     app.log.info(
       "DATABASE_URL not configured — running in framework-only mode (non-personal catalogue + stateless evaluation). Platform endpoints are disabled.",

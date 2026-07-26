@@ -2,6 +2,7 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import { hashToken } from "@cpf/identity";
 import { withTx, withUserTx } from "../../db/pool.js";
 import { SESSION_SLIDING_TTL_HOURS, STEP_UP_FRESHNESS_MINUTES } from "../constants.js";
+import { getOrgPlan, isModuleEntitled, type ModuleKey } from "../platform/entitlements.js";
 
 export type OrgRole =
   | "platform_admin"
@@ -182,5 +183,32 @@ export function requireOrgRole(...roles: OrgRole[]) {
       return;
     }
     request.orgId = orgId;
+  };
+}
+
+/**
+ * Gates a route by the organisation's plan-based module entitlement
+ * (Delivery Plan Step 36). Must run AFTER requireOrgRole in the preHandler
+ * chain (needs request.orgId already set). Organisations with no active
+ * subscription default to the pre-Step-35 baseline (see
+ * DEFAULT_MODULE_ENTITLEMENTS) so existing/legacy orgs are unaffected.
+ */
+export function requireModuleEntitlement(moduleKey: ModuleKey) {
+  return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+    const orgId = request.orgId;
+    if (!orgId) {
+      await sendError(reply, 400, "REQUEST_VALIDATION_FAILED", "Missing organisation id.", request.id);
+      return;
+    }
+    const entitled = await withTx(async (client) => isModuleEntitled(await getOrgPlan(client, orgId), moduleKey));
+    if (!entitled) {
+      await sendError(
+        reply,
+        403,
+        "MODULE_NOT_ENTITLED",
+        `Your organisation's plan does not include the "${moduleKey}" module. Contact your platform administrator to upgrade.`,
+        request.id,
+      );
+    }
   };
 }

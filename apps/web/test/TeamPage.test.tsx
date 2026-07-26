@@ -32,6 +32,16 @@ describe("TeamPage", () => {
             json: async () => ({ userId: "u-2", activationToken: "abc123", note: "shown once" }),
           });
         }
+        if (path.includes("/usage")) {
+          return Promise.resolve({
+            status: 200,
+            ok: true,
+            json: async () => ({
+              plan: null,
+              usage: { activeAssessments: { used: 0, limit: null }, orgUsers: { used: 0, limit: null } },
+            }),
+          });
+        }
         return Promise.resolve({ status: 200, ok: true, json: async () => [] });
       }),
     );
@@ -92,6 +102,16 @@ describe("TeamPage", () => {
             json: async () => [
               { id: "u-1", email: "rev@example.com", display_name: "Rev One", status: "active", mfa_enrolled: false, roles: ["reviewer"] },
             ],
+          });
+        }
+        if (path.includes("/usage")) {
+          return Promise.resolve({
+            status: 200,
+            ok: true,
+            json: async () => ({
+              plan: null,
+              usage: { activeAssessments: { used: 0, limit: null }, orgUsers: { used: 0, limit: null } },
+            }),
           });
         }
         return Promise.resolve({ status: 200, ok: true, json: async () => [] });

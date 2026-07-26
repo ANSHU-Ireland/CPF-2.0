@@ -126,7 +126,11 @@ describe("accessibility smoke (vitest-axe)", () => {
   });
 
   it("TeamPage has no axe violations", async () => {
-    stubFetchJson(() => []);
+    stubFetchJson((path) =>
+      path.includes("/usage")
+        ? { plan: null, usage: { activeAssessments: { used: 0, limit: null }, orgUsers: { used: 0, limit: null } } }
+        : [],
+    );
     const { container } = render(routerFor("/org/org-1/team", "/org/:orgId/team", <TeamPage />));
     await screen.findByText("Team");
     await expectNoViolations(container);
