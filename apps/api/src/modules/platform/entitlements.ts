@@ -3,9 +3,9 @@ import type { Queryable } from "../../db/pool.js";
 /**
  * Module keys used by the entitlement gate (Delivery Plan Step 36). Mirrors
  * the keys seeded into `plans.module_entitlements` (migration 0012) — keep in
- * sync with any new module added there. "learning" and "intelligence" have no
- * real routes yet (future phases); their presence here only proves the gate
- * mechanism is generic, not tied to a single module.
+ * sync with any new module added there. "learning" (Step 41) and
+ * "intelligence" (Step 43) both have real routes now, gated the same way as
+ * "assessments".
  */
 export type ModuleKey = "assessments" | "learning" | "intelligence";
 

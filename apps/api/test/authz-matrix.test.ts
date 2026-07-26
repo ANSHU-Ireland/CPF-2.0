@@ -185,6 +185,30 @@ const ROUTE_TABLE: RouteSpec[] = [
     body: { evidenceRetentionDays: 180, integrityRetentionDays: 90, auditRetentionDays: 730, deletionMode: "hard_delete" },
     contentType: "application/json",
   },
+  { method: "GET", path: "/v1/orgs/:orgId/intelligence/settings", roles: ["org_admin"] },
+  {
+    method: "PUT",
+    path: "/v1/orgs/:orgId/intelligence/settings",
+    roles: ["org_admin"],
+    // Deliberately omits worksCouncilAcknowledgedBy: an allowed org_admin
+    // caller passes the authz gate and hits the route's own 422 validation
+    // (not 401/403, satisfying the matrix's "passed the gate" check) WITHOUT
+    // ever writing to org_intelligence_settings — a body of {enabled:false}
+    // would actually disable the fixture org's intelligence-enabled flag for
+    // real on the way through, breaking every later route in this table that
+    // depends on it staying enabled.
+    body: { enabled: true },
+  },
+  {
+    method: "POST",
+    path: "/v1/orgs/:orgId/pain-points",
+    roles: ["org_admin", "hiring_manager", "reviewer", "learning_admin", "support_agent"],
+    body: { category: "workload", reportText: "matrix test report", anonymous: true },
+  },
+  { method: "GET", path: "/v1/orgs/:orgId/intelligence/pain-point-themes", roles: ["org_admin"] },
+  { method: "GET", path: "/v1/orgs/:orgId/intelligence/skills-gap", roles: ["org_admin"] },
+  { method: "GET", path: "/v1/orgs/:orgId/intelligence/ai-adoption", roles: ["org_admin"] },
+  { method: "GET", path: "/v1/orgs/:orgId/intelligence/token-cost", roles: ["org_admin"] },
 ];
 
 function resolvePath(spec: RouteSpec, orgId: string): string {
@@ -279,6 +303,19 @@ run("CPF authorization matrix (CPF-47)", () => {
       `INSERT INTO org_subscriptions (organisation_id, plan_id)
        SELECT $1, id FROM plans WHERE code = 'it-authz-full-access'
        ON CONFLICT (organisation_id) DO UPDATE SET plan_id = EXCLUDED.plan_id, updated_at = now()`,
+      [orgAId],
+    );
+
+    // Step 43's intelligence routes have a THIRD gate beyond role+plan
+    // (requireIntelligenceEnabled) — enable it directly for this fixture org
+    // so allowed-role callers reach the route's own logic layer rather than
+    // being indistinguishable from a denied caller (both would otherwise be
+    // 403). The enable-flow's own works-council-ack requirement is tested in
+    // intelligence.test.ts, not here.
+    await admin.query(
+      `INSERT INTO org_intelligence_settings (organisation_id, enabled, works_council_acknowledged_by, works_council_acknowledged_at, enabled_at)
+       VALUES ($1, true, 'IT Fixture Works Council Rep', now(), now())
+       ON CONFLICT (organisation_id) DO UPDATE SET enabled = true, updated_at = now()`,
       [orgAId],
     );
 
