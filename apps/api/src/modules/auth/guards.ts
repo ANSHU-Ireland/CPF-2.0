@@ -212,3 +212,47 @@ export function requireModuleEntitlement(moduleKey: ModuleKey) {
     }
   };
 }
+
+/**
+ * Gates the support console's read endpoints (Delivery Plan Step 37). The
+ * caller is a platform_admin acting WITHOUT org membership — unlike
+ * requireOrgRole, there is no role-in-this-org check; instead access is
+ * granted only by an active (approved, unexpired, unrevoked)
+ * support_access_grants row scoped to (organisationId, this platform user).
+ * Attaches request.orgId on success so downstream handlers can withOrgTx.
+ */
+export async function requireSupportAccess(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  await requireAuth(request, reply);
+  if (reply.sent) return;
+  const { orgId } = request.params as { orgId?: string };
+  if (!orgId) {
+    await sendError(reply, 400, "REQUEST_VALIDATION_FAILED", "Missing organisation id.", request.id);
+    return;
+  }
+  const isPlatformAdmin = request.auth?.memberships.some((m) => m.role === "platform_admin");
+  if (!isPlatformAdmin) {
+    await sendError(reply, 403, "FORBIDDEN", "Platform administrator role required.", request.id);
+    return;
+  }
+  const hasActiveGrant = await withTx(async (client) => {
+    const result = await client.query(
+      `SELECT id FROM support_access_grants
+        WHERE organisation_id = $1 AND platform_user_id = $2
+          AND status = 'approved' AND revoked_at IS NULL AND expires_at > now()
+        LIMIT 1`,
+      [orgId, request.auth!.userId],
+    );
+    return result.rowCount! > 0;
+  });
+  if (!hasActiveGrant) {
+    await sendError(
+      reply,
+      403,
+      "SUPPORT_ACCESS_REQUIRED",
+      "No active support access grant for this organisation. Request one and have an organisation administrator approve it.",
+      request.id,
+    );
+    return;
+  }
+  request.orgId = orgId;
+}

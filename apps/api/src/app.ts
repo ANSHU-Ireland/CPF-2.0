@@ -27,6 +27,7 @@ import { registerReviewRoutes } from "./modules/org/reviews.js";
 import { registerOrgViewsRoutes } from "./modules/org/views.js";
 import { registerUsageRoutes } from "./modules/org/usage.js";
 import { registerPlatformRoutes } from "./modules/platform/routes.js";
+import { registerSupportAccessRoutes } from "./modules/platform/support-access.js";
 import { registerSubscriptionRoutes } from "./modules/platform/subscriptions.js";
 
 const API_VERSION = "0.1.0";
@@ -283,6 +284,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     registerCalibrationRoutes(app);
     registerUsageRoutes(app);
     registerLearningRoutes(app);
+    registerSupportAccessRoutes(app);
   } else {
     app.log.info(
       "DATABASE_URL not configured — running in framework-only mode (non-personal catalogue + stateless evaluation). Platform endpoints are disabled.",
