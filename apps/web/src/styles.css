@@ -11,7 +11,7 @@
   --action-hover: #17406f;
   --status-info: #2c5f8a;
   --status-success: #2f7d4f;
-  --status-warning: #b96a00;
+  --status-warning: #a75f00;
   --status-danger: #b3261e;
   --focus-ring: #1f4e8c;
 
@@ -19,7 +19,7 @@
   --band-limited: #e8eaee;
   --band-mixed: #c9d4e4;
   --band-supported: #9db6d9;
-  --band-strong: #5b84b8;
+  --band-strong: #5277a6;
 
   --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
   --space-6: 24px; --space-8: 32px; --space-12: 48px;
