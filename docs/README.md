@@ -12,7 +12,7 @@
 | [security](security) | Security architecture, implemented controls vs gaps, threat models, incident summary |
 | [compliance](compliance) | GDPR & EU AI Act posture, RoPA skeleton, monitoring policy, subprocessor register, legal-review register |
 | [ai-governance](ai-governance) | AI feature register, oversight framework, evaluation framework |
-| [testing](testing) | Test strategy, current coverage, critical-flow matrix |
+| [testing](testing) | Test strategy, current coverage, critical-flow matrix, UAT execution pack |
 | [agile](agile) | Backlog (epics, stories, sprint 1), Definition of Ready/Done |
 | [operations](operations) | Environments, deployment reference, runbooks (incident, backup, deletion, kill switch) |
 | [investor](investor) | Investor brief with built/planned boundary, demo script, data-room index |
