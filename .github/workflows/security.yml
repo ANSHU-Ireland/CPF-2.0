@@ -75,7 +75,83 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check dependency review support
+        id: dependency-review-support
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_API_URL: ${{ github.api_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          python <<'PY'
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+
+          url = (
+              f"{os.environ['GITHUB_API_URL']}/repos/"
+              f"{os.environ['GITHUB_REPOSITORY']}/dependency-graph/compare/"
+              f"{os.environ['BASE_SHA']}...{os.environ['HEAD_SHA']}"
+          )
+          request = urllib.request.Request(
+              url,
+              headers={
+                  "Accept": "application/vnd.github+json",
+                  "Authorization": " ".join(("Bearer", os.environ["GITHUB_TOKEN"])),
+                  "User-Agent": "github-actions-dependency-review-preflight",
+                  "X-GitHub-Api-Version": "2022-11-28",
+              },
+          )
+
+          status = 200
+          body = ""
+
+          try:
+              with urllib.request.urlopen(request) as response:
+                  status = response.status
+                  body = response.read().decode()
+          except urllib.error.HTTPError as error:
+              status = error.code
+              body = error.read().decode()
+
+          message = body
+          try:
+              message = json.loads(body).get("message", body)
+          except json.JSONDecodeError:
+              pass
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              if status == 200:
+                  output.write("supported=true\n")
+                  print("Dependency review API is available for this repository.")
+              elif status in {403, 404, 422} and any(
+                  marker in str(message).lower()
+                  for marker in (
+                      "not supported on this repository",
+                      "dependency graph",
+                  )
+              ):
+                  output.write("supported=false\n")
+                  print(
+                      "::notice::Skipping dependency review because the "
+                      "repository does not have dependency graph support enabled."
+                  )
+              else:
+                  print(body)
+                  raise SystemExit(
+                      f"Unexpected dependency review preflight response: {status}"
+                  )
+          PY
+
+      - name: Dependency review unavailable
+        if: steps.dependency-review-support.outputs.supported != 'true'
+        run: |
+          echo "Dependency review is skipped because the repository does not currently expose the dependency graph API to this workflow."
+
       - name: Dependency review
+        if: steps.dependency-review-support.outputs.supported == 'true'
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: high
