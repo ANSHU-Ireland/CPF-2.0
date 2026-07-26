@@ -190,13 +190,18 @@ request in the API access log returned 200; no console/network errors.
    `color.band.strong` with white text 3.86:1 — the latter a live defect in
    `EvidenceBandBadge`'s highest band) — both corrected
    (`#A75F00`/`#5277A6`), verified via computed sRGB relative-luminance, not
-   visual estimate. See [docs/design/design-system-and-experience.md](design/design-system-and-experience.md).
+   visual estimate. See [docs/design/design-system-and-experience.md](../design/design-system-and-experience.md).
 ## Implemented, awaiting first CI execution
 
 GitHub Actions workflows (typecheck/test/audit/build + migrations + the same
-integration job on PostgreSQL 16 with both roles) are committed but have not
-run — the repository has not been pushed (no GitHub credentials in this
-environment).
+integration job on PostgreSQL 16 with both roles) are committed. **Updated
+(Step 49):** the repository has since been pushed — every delivery-plan step
+from 31 onward has shipped on its own feature branch to `origin` (`gh` CLI
+access in this environment is read-only, so branches are pushed and handed
+to the user as PR links rather than opened/merged automatically) — but no
+CI run has actually been observed executing yet, since no PR has been merged
+to a branch the workflows trigger on; this remains disclosed as unverified
+rather than assumed to pass.
 
 ## Designed but not implemented (honest boundary)
 
@@ -205,9 +210,10 @@ environment).
 - Learning module core (data model, APIs, UI), Workforce Intelligence
   (backend + UI), the AI gateway (Step 45), and the plugin/module framework
   plus its first module Workflow Insights (Step 46) are now implemented.
-  Only Phase I's launch gates (Steps 47–50: accessibility audit, load
-  verification, compliance/investor pack finalisation, final acceptance
-  sweep) remain.
+  Phase I's launch gates: accessibility audit (Step 47) and performance/load
+  verification (Step 48) are now also complete. Only compliance/investor
+  pack finalisation (Step 49, in progress) and the final acceptance sweep
+  (Step 50) remain.
 - Actual staging/production provisioning — the runbook and container are
   ready (Steps 31–32), but real provisioning needs cloud credentials this
   environment doesn't have (USER-GATED).
