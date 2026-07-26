@@ -13,6 +13,7 @@
     "retention:dry-run": "node dist/jobs/retention.js",
     "retention:execute": "node dist/jobs/retention.js --execute",
     "notify:retry": "node dist/jobs/notify.js",
+    "backup:drill": "node scripts/backup-restore-drill.mjs",
     "openapi:generate": "node scripts/generate-openapi.mjs"
   },
   "dependencies": {

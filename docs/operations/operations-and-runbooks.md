@@ -51,6 +51,27 @@ Nightly automated PG snapshots + WAL PITR (managed). **Restore is drilled
 quarterly into staging and the drill result is recorded** — a backup that has
 never been restored is not a backup. Object storage: versioning + lifecycle.
 
+**Local drill mechanism (Delivery Plan Step 34, MILESTONE)**: since no real
+managed-Postgres environment exists yet, `apps/api/scripts/backup-restore-drill.mjs`
+proves the underlying mechanism locally: `pg_dump` (custom format, `-Fc`) the
+source database → create a fresh throwaway restore-target database →
+`pg_restore` into it → assert the assessment-template-version count matches
+the source and the tamper-evident audit chain independently re-verifies as
+valid with the same entry count → drop the throwaway database. Requires
+`npm run build` first and a `DATABASE_ADMIN_URL` role with `CREATEDB`
+(only needed for this drill, not for normal migration/API operation). Run via
+`npm run backup:drill -w @cpf/api`.
+
+**Drill result, 2026-07-26**: run twice against this machine's local
+PostgreSQL 17 `cpf` database. Both runs passed (exit 0): 10 assessment
+template versions matched between source and restored copy; the audit chain
+re-verified as valid over 1,631 real entries with the entry count matching.
+This proves the pg_dump/pg_restore mechanism and the audit-chain
+verification logic both work end-to-end. **Honest scope**: this is a local
+drill, not the production backup mechanism — a real quarterly drill against
+managed-Postgres PITR restore-to-a-new-instance still needs to be run once a
+real staging/production database exists, per the paragraph above.
+
 ## Runbook: data deletion & retention run
 Scheduled job (CPF-26, implemented): `apps/api/src/jobs/retention.ts`, run via
 `npm run retention:dry-run` (default, reports counts only) or

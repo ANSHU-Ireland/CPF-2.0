@@ -1,10 +1,10 @@
 # Completion Report — CPF Enterprise Ecosystem
 
-Reporting date: 2026-07-25 (fifth build cycle — delivery-plan Steps 25–29:
-supply-chain/SAST CI, session & authz hardening, authorization-matrix
-automation, threat-model refresh + ingestion fuzz testing) ·
-Reporting standard: directive §21 (no premature completion claims). This is
-the authoritative status document.
+Reporting date: 2026-07-26 (sixth build cycle — delivery-plan Steps 30–34:
+GitHub push + first CI run, production container image, staging deployment
+runbook + migration tracking, observability wiring, backup/restore drill
+[MILESTONE]) · Reporting standard: directive §21 (no premature completion
+claims). This is the authoritative status document.
 
 ## Release judgement
 
@@ -19,7 +19,7 @@ remaining)** — employer portal, reviewer workspace, candidate portal, and
 platform administration. No compliance certification is claimed. No real
 candidate data has ever entered this system.
 
-## Fully implemented and tested — 197 automated tests green, 1 intentionally skipped (verified locally 2026-07-25)
+## Fully implemented and tested — 204 automated tests green on `main`, 1 intentionally skipped (verified locally 2026-07-26; rises to 208 once the open Step 33 observability PR merges, plus migration/container coverage from the open Step 31/32 PRs)
 
 | Layer | Evidence |
 |---|---|
@@ -109,6 +109,75 @@ request in the API access log returned 200; no console/network errors.
 3. **Authorization matrix automation (CPF-47):** a table-driven test asserting deny-by-default across every org-scoped route (30 distinct path templates, 37 method combinations) × every role (5 org roles, no token, cross-org), cross-checked at test time against the live OpenAPI spec so an unlisted new route breaks the test immediately. Confirmed two roles (`learning_admin`, `support_agent`) are correctly denied by literally every existing route, since neither is wired to any endpoint yet.
 4. **Threat-model refresh + ingestion fuzz testing (Step 29, MILESTONE):** `docs/security/security-architecture-and-threat-model.md` rewritten with a per-threat status column reflecting implemented reality; new fuzz test suite sends malformed JSON, oversized bodies (both transport `bodyLimit` and application-level checks), unicode (emoji/CJK/RTL), and prototype-pollution-shaped keys (`__proto__`, `constructor.prototype`) to the candidate evidence-ingestion endpoint — every case resolves to a safe, correctly classified status and the process's real `Object.prototype` is never mutated. Log redaction verified two ways: a unit test of the exact redact config against a raw pino instance, and an end-to-end capture of a real authenticated request's log stream confirming a genuine bearer token is never emitted.
 
+## Sixth build cycle additions (Steps 30–34, disclosed per §21)
+
+Note on workflow: starting this cycle, delivery work moved to a PR-per-step
+model at the user's request (a feature branch per step, pushed to GitHub, the
+user merges via the web UI) rather than direct commits to `main`. At the time
+of this report, Steps 31–33's PRs are pushed and awaiting the user's merge —
+their code is fully implemented and verified on their respective branches
+(as described below) but not yet part of `main`'s history; Step 30 is merged.
+
+1. **GitHub push + first CI run (CPF-49, Step 30):** the repository was
+   pushed to GitHub for the first time; both workflows (`ci`, `security`)
+   went green on the first real run against PostgreSQL 16 in CI. Branch
+   protection was deliberately deferred (user's explicit choice, to be
+   revisited before any real collaborator or pilot). The authenticated `gh`
+   CLI identity was found to have only read (`pull`) access to the repo —
+   a different, lower-privileged credential than whatever performs actual
+   `git push` operations — so native GitHub security-setting toggles
+   (Dependabot alerts, secret-scanning/push-protection) could not be enabled
+   via the API and require a real admin via the GitHub web UI.
+2. **Production container image (CPF-50, Step 31):** a 4-stage multi-stage
+   `apps/api/Dockerfile` (non-root user, `tini` PID 1, Node-native
+   `HEALTHCHECK`), a `docker-compose.yml` production profile (separate `db`
+   service from the local-dev one, to avoid double-applying migrations), and
+   a new CI `container-smoke` job that builds the image, runs it against a
+   real PostgreSQL 16 service container, and polls `/health` for
+   `"mode":"platform"`. No local Docker engine is available in this
+   environment, so correctness is proven only via CI — this had not yet been
+   confirmed green as of this report (the PR is open).
+3. **Staging deployment runbook + migration tracking (CPF-51, Step 32,
+   partially user-gated):** a new idempotent `packages/db/scripts/migrate.mjs`
+   tracks applied migrations in a new `schema_migrations` table (migration
+   0011) and safely retrofits any environment where 0001–0010 were already
+   applied by hand; verified locally against both a fresh throwaway database
+   and the existing local dev database (retrofit path), including idempotent
+   re-runs. The unused `SESSION_SECRET` was removed from `.env.example` (dead
+   configuration — sessions are opaque hashed tokens, never signed). The
+   operations runbook gained an exact env-var reference table, a secrets
+   checklist, an EU-region provider shortlist (Hetzner recommended default),
+   and a DNS/TLS reference. Actual staging provisioning was **not** performed
+   — it requires real cloud credentials this environment doesn't have; the
+   user was asked and chose to defer it.
+4. **Observability wiring (CPF-52, Step 33):** `GET /metrics` (Prometheus
+   text format, off by default, internal-network-only by convention — no
+   application-level auth) exposing a request-duration histogram plus
+   evidence-event/audit-append counters and retention-run gauges.
+   OpenTelemetry tracing, genuinely no-op unless `OTEL_EXPORTER_OTLP_ENDPOINT`
+   is set, with deliberately narrow (HTTP + `pg` only) instrumentation to
+   limit dependency weight. When active, the current trace id is merged into
+   every audit-log entry's metadata via the single `appendAudit` chokepoint
+   every module already writes through, correlating a log line, an audit
+   entry, and a trace for one event. Manually smoke-tested end-to-end against
+   the built server binary.
+5. **Backup/restore drill (Step 34, MILESTONE):** new
+   `apps/api/scripts/backup-restore-drill.mjs` — `pg_dump` (custom format) →
+   throwaway restore-target database → `pg_restore` → assertions against the
+   restored copy (assessment-template-version count matches source; the
+   tamper-evident audit chain independently re-verifies as valid over 1,631
+   real entries and the entry count matches). **Actually run twice against
+   this machine's local PostgreSQL 17 instance, both times exiting 0 with all
+   assertions passed** (not merely designed — genuinely executed; see
+   Verification evidence below for the exact result). Honest scope: this is
+   a local drill proving the pg_dump/pg_restore mechanism and the audit-chain
+   verification logic both work end-to-end; it is explicitly documented as
+   **not** the production backup mechanism (managed-provider automated
+   snapshots + WAL PITR, per the operations runbook's backup & restore
+   runbook) — a real managed-Postgres PITR restore-to-new-instance drill
+   still needs to be run quarterly once a real staging/production database
+   exists.
+
 ## Defects found and fixed by our own tests this cycle (disclosed per §21)
 
 1. Superuser DB connection silently bypassed RLS → dedicated `cpf_app`/`cpf_api`
@@ -143,10 +212,12 @@ request in the API access log returned 200; no console/network errors.
 
 ## Implemented, awaiting first CI execution
 
-GitHub Actions workflows (typecheck/test/audit/build + migrations + the same
-integration job on PostgreSQL 16 with both roles) are committed but have not
-run — the repository has not been pushed (no GitHub credentials in this
-environment).
+GitHub Actions workflows for `container-smoke` (Step 31) are committed on an
+open, unmerged PR branch (`feat/step-31-container`) and have not yet had a
+confirmed CI run — the branch is pushed but awaiting the user's PR merge.
+The original `ci`/`security` workflows (typecheck/test/audit/build +
+migrations, CodeQL/SBOM/secret-scan) have run and gone green on `main`
+(Step 30).
 
 ## Designed but not implemented (honest boundary)
 
@@ -154,8 +225,10 @@ environment).
   no binary upload/malware-scanning pipeline exists yet; not required until one is added.
 - AI gateway, plugin/module framework, learning module, workforce intelligence,
   platform admin console (support/compliance/analytics) — none started (Steps 35–46).
-- Production container, staging deployment, observability, backup/restore drill
-  — none run yet (Steps 31–34).
+- Staging/production themselves remain unprovisioned (no real cloud
+  credentials in this environment) — the container image, migration tooling,
+  observability wiring, and a backup/restore drill mechanism are all built
+  and verified (Steps 31–34), but nothing has been deployed anywhere real.
 - AI features: **none exist**; gateway is a governed design (ADR-0005). The
   candidate portal explicitly states no AI assistant is configured, rather
   than simulating one.
@@ -170,10 +243,13 @@ workforce intelligence, productivity plugins — per release roadmap.
 
 ## Blocked by external access
 
-GitHub repo creation/push/branch protection/first CI run · staging/production
-provisioning · Docker Desktop engine (would not start in this environment —
-integration verification used a local PostgreSQL 17 instance instead; compose
-remains the documented path).
+Branch protection enablement (native GitHub API blocked by the authenticated
+`gh` CLI identity's read-only permissions — needs a real admin via the web
+UI) · staging/production provisioning (needs real cloud credentials) · Docker
+Desktop engine (would not start in this environment — integration
+verification used a local PostgreSQL 17 instance instead; the
+`container-smoke` CI job is the only way the production container image gets
+proven correct, pending that PR's merge and a confirmed green run).
 
 ## Requires legal review (blocks pilot) — unchanged
 
@@ -184,8 +260,11 @@ repo secret rotation (founder action).
 ## Requires security review
 
 External penetration test before pilot (not run in this environment) ·
-TOTP-secret envelope encryption (deployment) · backup/restore drill (Step 34,
-not yet run) · production deployment hardening review (Steps 31–32).
+TOTP-secret envelope encryption (deployment) · a real managed-Postgres PITR
+restore drill once staging/production exists (the local drill mechanism
+itself has been run and passed — see Sixth build cycle additions) ·
+production deployment hardening review against a real environment (Steps
+31–32 built the mechanism; nothing has been deployed anywhere real yet).
 
 ## Requires commercial decision (founders)
 
@@ -212,15 +291,24 @@ measurement.
    operability — this is not a substitute for a manual assistive-technology
    audit before pilot.
 
-## Verification evidence (commands, this machine, 2026-07-25, fifth cycle)
+## Verification evidence (commands, this machine, 2026-07-26, sixth cycle)
 
 - `npm run typecheck` — clean, strict, all 4 workspaces (including @cpf/web).
-- `npm test` — 197 passed / 0 failed / 1 intentionally-skipped, run twice
-  consecutively for stability (framework 65, identity 17, API 74+1 skip,
-  web 48) with `DATABASE_URL` (restricted role) + `DATABASE_ADMIN_URL` set.
+- `npm test` — 204 passed / 0 failed / 1 intentionally-skipped on `main`, run
+  twice consecutively for stability (framework 65, identity 17, API 74+1
+  skip, web 48) with `DATABASE_URL` (restricted role) + `DATABASE_ADMIN_URL`
+  set.
 - `npm audit` — 0 vulnerabilities (across all workspaces incl. @cpf/web).
 - `npm run build` — succeeds (framework + identity + API build ordering).
 - `npx vite build` (@cpf/web) — succeeds.
+- **Backup/restore drill (Step 34)** — `node apps/api/scripts/backup-restore-drill.mjs`
+  run twice against this machine's local PostgreSQL 17 `cpf` database, both
+  runs exiting 0: `pg_dump` (custom format) → fresh throwaway
+  `cpf_backup_restore_drill` database → `pg_restore` → assertions against the
+  restored copy passed both times (10 assessment-template-version rows match;
+  the tamper-evident audit chain independently re-verifies as valid over
+  1,631 real entries, entry count matches source) — genuinely executed, not
+  simulated.
 - Live boot: platform mode, bootstrap → login → org creation over HTTP.
 - Live web smoke test: sign-in → real API data rendered → session-restore →
   stub-page/404/sign-out all correct (browser-automated; predates the stub
