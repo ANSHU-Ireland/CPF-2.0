@@ -229,14 +229,33 @@ export function registerAiGatewayRoutes(app: FastifyInstance, moduleOptions: AiG
       const orgId = request.orgId!;
       const auth = request.auth!;
 
-      return withOrgTx(orgId, async (client) => {
+      // Fixed (Delivery Plan Step 50, real CI-only defect found and fixed):
+      // this handler used to call `sendError(reply, ...)` — which sends the
+      // HTTP response immediately — from *inside* the `withOrgTx` callback,
+      // ahead of that transaction's COMMIT. That let a fast client (or this
+      // route's own integration test, reading `model_invocations` back over
+      // a separate connection right after its request resolved) observe the
+      // response before the invocation-log row it depends on was actually
+      // visible, exactly the "reply-inside-transaction race" class of bug
+      // already fixed elsewhere per ADR-0007. Fixed the same way as
+      // auth/routes.ts and candidate/portal.ts: the transaction callback
+      // below only ever returns a plain outcome descriptor; every
+      // `sendError`/`reply.send` call happens after `withOrgTx` resolves
+      // (i.e. after COMMIT).
+      type AiAssistOutcome =
+        | { kind: "not_found" }
+        | { kind: "provider_not_configured" }
+        | { kind: "success"; suggestion: string }
+        | { kind: "failed"; status: "killed" | "budget_exhausted" | "error"; errorCode: string };
+
+      const outcome = await withOrgTx<AiAssistOutcome>(orgId, async (client) => {
         const review = await client.query<{ session_id: string; reviewer_user_id: string; second_reviewer_user_id: string | null }>(
           "SELECT session_id, reviewer_user_id, second_reviewer_user_id FROM reviews WHERE id = $1",
           [reviewId],
         );
         const row = review.rows[0];
         if (!row || (row.reviewer_user_id !== auth.userId && row.second_reviewer_user_id !== auth.userId)) {
-          return sendError(reply, 404, "NOT_FOUND", "Review not found.", request.id);
+          return { kind: "not_found" };
         }
 
         // Integrity signals are structurally excluded from the prompt (AIF-01: "excluded from suggestion prompts").
@@ -275,13 +294,7 @@ export function registerAiGatewayRoutes(app: FastifyInstance, moduleOptions: AiG
             redactionsApplied: [],
             errorCode: "AI_PROVIDER_NOT_CONFIGURED",
           });
-          return sendError(
-            reply,
-            503,
-            "AI_PROVIDER_NOT_CONFIGURED",
-            "No AI provider is configured for this platform. Phase 1 ships fully human-only by design (ADR-0005).",
-            request.id,
-          );
+          return { kind: "provider_not_configured" };
         }
 
         const usageResult = await client.query<{ tokens: string | null; cost: string | null }>(
@@ -346,11 +359,7 @@ export function registerAiGatewayRoutes(app: FastifyInstance, moduleOptions: AiG
             metadata: { status: "success" },
           });
 
-          return {
-            suggestion: text,
-            label: "AI suggestion — requires your judgement",
-            disclaimer: "This is a proposed suggestion only. It is never auto-applied; you decide whether to use, modify, or reject it.",
-          };
+          return { kind: "success", suggestion: text };
         } catch (err) {
           const status: InvocationLogFields["status"] =
             err instanceof AiGatewayKilledError ? "killed" : err instanceof AiBudgetExhaustedError ? "budget_exhausted" : "error";
@@ -386,10 +395,32 @@ export function registerAiGatewayRoutes(app: FastifyInstance, moduleOptions: AiG
             metadata: { status, errorCode },
           });
 
-          const httpStatus = status === "killed" ? 403 : status === "budget_exhausted" ? 429 : 502;
-          return sendError(reply, httpStatus, errorCode, `AI-assist request could not be completed (${errorCode}).`, request.id);
+          return { kind: "failed", status, errorCode };
         }
       });
+
+      switch (outcome.kind) {
+        case "not_found":
+          return sendError(reply, 404, "NOT_FOUND", "Review not found.", request.id);
+        case "provider_not_configured":
+          return sendError(
+            reply,
+            503,
+            "AI_PROVIDER_NOT_CONFIGURED",
+            "No AI provider is configured for this platform. Phase 1 ships fully human-only by design (ADR-0005).",
+            request.id,
+          );
+        case "success":
+          return {
+            suggestion: outcome.suggestion,
+            label: "AI suggestion — requires your judgement",
+            disclaimer: "This is a proposed suggestion only. It is never auto-applied; you decide whether to use, modify, or reject it.",
+          };
+        case "failed": {
+          const httpStatus = outcome.status === "killed" ? 403 : outcome.status === "budget_exhausted" ? 429 : 502;
+          return sendError(reply, httpStatus, outcome.errorCode, `AI-assist request could not be completed (${outcome.errorCode}).`, request.id);
+        }
+      }
     },
   );
 }

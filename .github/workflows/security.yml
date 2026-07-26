@@ -122,15 +122,7 @@ jobs:
           except json.JSONDecodeError:
               pass
 
-          # As of 2026-07, GitHub currently uses these messages when
-          # dependency review is unavailable because dependency graph
-          # support is disabled for the repository.
-          unsupported_messages = (
-              "dependency review is not supported on this repository",
-              "dependency graph is not enabled",
-          )
           max_error_message_length = 200
-
           output_path = os.environ.get("GITHUB_OUTPUT")
           if not output_path:
               raise SystemExit("GITHUB_OUTPUT is not set")
@@ -139,18 +131,20 @@ jobs:
               if status == 200:
                   output.write("supported=true\n")
                   print("Dependency review API is available for this repository.")
-              # As of 2026-07, GitHub surfaces unsupported dependency review
-              # requests with 403/404/422 client-error responses instead of
-              # a stable single status code when dependency graph support is
-              # disabled for the repository.
-              elif status in {403, 404, 422} and any(
-                  marker in message.lower()
-                  for marker in unsupported_messages
-              ):
+              elif status in {403, 404, 422}:
+                  # Fixed (Delivery Plan Step 50, real CI defect found and
+                  # fixed): GitHub does not guarantee stable message text
+                  # when dependency-graph support is unavailable for a
+                  # repository (observed in practice: a bare "Forbidden"
+                  # body with no matching marker string) -- any 403/404/422
+                  # here means "can't run dependency review", so skip it
+                  # gracefully rather than failing the whole security
+                  # workflow over an optional, best-effort check.
                   output.write("supported=false\n")
                   print(
-                      "::notice::Skipping dependency review because the "
-                      "repository does not have dependency graph support enabled."
+                      "::notice::Skipping dependency review -- the "
+                      f"dependency-graph API returned {status}: "
+                      f"{message[:max_error_message_length]}"
                   )
               else:
                   print(
