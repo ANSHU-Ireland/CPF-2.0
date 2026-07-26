@@ -264,3 +264,27 @@ export const dataRightsMachine = new StateMachine<DataRightsState, DataRightsEve
     withdrawn_by_subject: {},
   },
 });
+
+// ---------------------------------------------------------------------------
+// Learning enrollment (deliberately separate from hiring evidence: no FK
+// into candidates/sessions — see delivery-plan Step 40's hard rule)
+// ---------------------------------------------------------------------------
+
+export type LearningEnrollmentState = "enrolled" | "in_progress" | "completed" | "withdrawn";
+
+export type LearningEnrollmentEvent = "begin" | "complete" | "withdraw";
+
+export const learningEnrollmentMachine = new StateMachine<
+  LearningEnrollmentState,
+  LearningEnrollmentEvent
+>({
+  entity: "LearningEnrollment",
+  initial: "enrolled",
+  terminal: ["completed", "withdrawn"],
+  transitions: {
+    enrolled: { begin: "in_progress", withdraw: "withdrawn" },
+    in_progress: { complete: "completed", withdraw: "withdrawn" },
+    completed: {},
+    withdrawn: {},
+  },
+});

@@ -5,6 +5,7 @@ import {
   assertReportCanBeIssued,
   dataRightsMachine,
   invitationMachine,
+  learningEnrollmentMachine,
   reviewMachine,
   sessionMachine,
 } from "../src/state-machines.js";
@@ -150,5 +151,29 @@ describe("data-rights request lifecycle", () => {
     s = dataRightsMachine.next(s, "refuse_with_grounds");
     expect(s).toBe("refused_documented");
     expect(dataRightsMachine.isTerminal(s)).toBe(true);
+  });
+});
+
+describe("learning enrollment lifecycle", () => {
+  it("follows enrolled → in_progress → completed", () => {
+    let s = learningEnrollmentMachine.initial;
+    s = learningEnrollmentMachine.next(s, "begin");
+    s = learningEnrollmentMachine.next(s, "complete");
+    expect(s).toBe("completed");
+    expect(learningEnrollmentMachine.isTerminal(s)).toBe(true);
+  });
+
+  it("can withdraw from either enrolled or in_progress", () => {
+    expect(learningEnrollmentMachine.next("enrolled", "withdraw")).toBe("withdrawn");
+    expect(learningEnrollmentMachine.next("in_progress", "withdraw")).toBe("withdrawn");
+  });
+
+  it("cannot re-enter a completed or withdrawn enrollment", () => {
+    expect(() => learningEnrollmentMachine.next("completed", "begin")).toThrow(
+      InvalidTransitionError,
+    );
+    expect(() => learningEnrollmentMachine.next("withdrawn", "begin")).toThrow(
+      InvalidTransitionError,
+    );
   });
 });
