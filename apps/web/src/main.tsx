@@ -13,6 +13,7 @@ import { JobProfilesPage } from "./pages/JobProfilesPage.js";
 import { SessionsPage } from "./pages/SessionsPage.js";
 import { TeamPage } from "./pages/TeamPage.js";
 import { DataRightsPage } from "./pages/DataRightsPage.js";
+import { CompliancePage } from "./pages/CompliancePage.js";
 import { ReviewQueuePage } from "./pages/ReviewQueuePage.js";
 import { ReviewWorkspacePage } from "./pages/ReviewWorkspacePage.js";
 import { EvidenceProfilePage } from "./pages/EvidenceProfilePage.js";
@@ -78,6 +79,7 @@ function AppRoutes(): ReactNode {
         <Route path="/org/:orgId/job-profiles" element={<JobProfilesPage />} />
         <Route path="/org/:orgId/team" element={<TeamPage />} />
         <Route path="/org/:orgId/data-rights" element={<DataRightsPage />} />
+        <Route path="/org/:orgId/compliance" element={<CompliancePage />} />
         <Route path="/org/:orgId/reviews" element={<ReviewQueuePage />} />
         <Route path="/org/:orgId/reviews/:reviewId" element={<ReviewWorkspacePage />} />
         <Route path="/org/:orgId/sessions/:sessionId/profile" element={<EvidenceProfilePage />} />

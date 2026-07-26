@@ -113,12 +113,46 @@ async function requestText<T>(method: string, path: string, body: string, conten
   return json as T;
 }
 
+/** Fetches a binary/text file response (e.g. a CSV export) with auth, surfacing the same ApiError contract on failure. */
+async function requestBlob(path: string): Promise<{ blob: Blob; filename: string }> {
+  const headers: Record<string, string> = {};
+  if (sessionToken) headers.authorization = `Bearer ${sessionToken}`;
+  let response: Response;
+  try {
+    response = await fetch(path, { method: "GET", headers });
+  } catch {
+    throw new ApiError(0, {
+      code: "NETWORK_ERROR",
+      message: "The CPF API could not be reached. Check your connection and try again.",
+      requestId: "n/a",
+      retryable: true,
+    });
+  }
+  if (!response.ok) {
+    const json: unknown = await response.json().catch(() => null);
+    const errorBody =
+      json && typeof json === "object" && "error" in json
+        ? (json as ApiErrorBody).error
+        : {
+            code: "UNEXPECTED_RESPONSE",
+            message: "The server returned an unexpected response.",
+            requestId: "n/a",
+            retryable: false,
+          };
+    throw new ApiError(response.status, errorBody);
+  }
+  const match = /filename="([^"]+)"/.exec(response.headers.get("content-disposition") ?? "");
+  const blob = await response.blob();
+  return { blob, filename: match?.[1] ?? "download.csv" };
+}
+
 export const api = {
   get: <T>(path: string, opts?: { auth?: boolean }) => request<T>("GET", path, undefined, opts),
   post: <T>(path: string, body?: unknown, opts?: { auth?: boolean }) => request<T>("POST", path, body, opts),
   put: <T>(path: string, body?: unknown, opts?: { auth?: boolean }) => request<T>("PUT", path, body, opts),
   delete: <T>(path: string, opts?: { auth?: boolean }) => request<T>("DELETE", path, undefined, opts),
   postText: <T>(path: string, body: string, contentType: string) => requestText<T>("POST", path, body, contentType),
+  getBlob: (path: string) => requestBlob(path),
 };
 
 // ---------------------------------------------------------------------------
@@ -386,6 +420,43 @@ export interface LegalHoldRow {
   reason: string;
   placed_at: string;
   released_at: string | null;
+}
+
+export interface AuditLogRow {
+  id: string | number;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  actor_user_id: string | null;
+  occurred_at: string;
+  metadata: Record<string, unknown>;
+}
+
+export interface AuditSearchResponse {
+  items: AuditLogRow[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface AuditChainVerification {
+  valid: boolean;
+  entries: number;
+  firstBrokenId: number | null;
+}
+
+export interface RetentionPolicy {
+  evidence_retention_days: number;
+  integrity_retention_days: number;
+  audit_retention_days: number;
+  deletion_mode: "hard_delete" | "anonymise_then_delete";
+  updated_at: string;
+}
+
+export interface RetentionPolicyResponse {
+  policy: RetentionPolicy | null;
+  lastRun: (Record<string, unknown> & { occurredAt: string }) | null;
+  nextDueEstimateNote: string;
 }
 
 export interface CandidatePortalView {

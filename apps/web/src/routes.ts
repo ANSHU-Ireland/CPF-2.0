@@ -14,6 +14,7 @@ export const routes = {
   orgJobProfiles: (orgId: string) => `/org/${orgId}/job-profiles`,
   orgTeam: (orgId: string) => `/org/${orgId}/team`,
   orgDataRights: (orgId: string) => `/org/${orgId}/data-rights`,
+  orgCompliance: (orgId: string) => `/org/${orgId}/compliance`,
   orgReviews: (orgId: string) => `/org/${orgId}/reviews`,
   orgReview: (orgId: string, reviewId: string) => `/org/${orgId}/reviews/${reviewId}`,
   sessionProfile: (orgId: string, sessionId: string) =>

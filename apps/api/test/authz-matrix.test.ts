@@ -118,6 +118,16 @@ const ROUTE_TABLE: RouteSpec[] = [
     path: "/v1/orgs/:orgId/learning/status",
     roles: ["org_admin", "hiring_manager", "learning_admin"],
   },
+  { method: "GET", path: "/v1/orgs/:orgId/audit/search", roles: ["org_admin"] },
+  { method: "GET", path: "/v1/orgs/:orgId/audit/export", roles: ["org_admin"] },
+  { method: "GET", path: "/v1/orgs/:orgId/retention-policy", roles: ["org_admin"] },
+  {
+    method: "PUT",
+    path: "/v1/orgs/:orgId/retention-policy",
+    roles: ["org_admin"],
+    body: { evidenceRetentionDays: 180, integrityRetentionDays: 90, auditRetentionDays: 730, deletionMode: "hard_delete" },
+    contentType: "application/json",
+  },
 ];
 
 function resolvePath(spec: RouteSpec, orgId: string): string {
