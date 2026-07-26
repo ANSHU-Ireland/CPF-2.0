@@ -2,6 +2,8 @@ import { useMemo, type ReactNode } from "react";
 import { NavLink, Navigate, Outlet, useNavigate, useParams } from "react-router";
 import { useAuth } from "./auth.js";
 import { routes } from "./routes.js";
+import { api } from "./api.js";
+import { useQuery } from "./useQuery.js";
 
 /**
  * Authenticated application shell: left navigation filtered by the user's
@@ -27,6 +29,21 @@ export function Shell(): ReactNode {
     [memberships, activeOrgId],
   );
   const isPlatformAdmin = memberships.some((m) => m.role === "platform_admin");
+
+  // Learning nav is gated by role AND module entitlement. Entitlement isn't
+  // otherwise exposed to the client, so this reuses the cheap `/learning/status`
+  // smoke-check route (kept specifically for this) — if it 404s/403s (module
+  // not entitled, or no learning-relevant role), the nav simply doesn't show.
+  const canSeeLearning = Boolean(activeOrgId) && (rolesInOrg.size > 0);
+  const learningStatus = useQuery(
+    () =>
+      canSeeLearning
+        ? api.get<{ module: string; enabled: boolean }>(`/v1/orgs/${activeOrgId}/learning/status`)
+        : Promise.resolve(null),
+    [activeOrgId, canSeeLearning],
+  );
+  const learningEnabled = learningStatus.data?.enabled === true;
+  const isLearningAdmin = rolesInOrg.has("org_admin") || rolesInOrg.has("learning_admin");
 
   if (!authenticated) return <Navigate to={routes.login()} replace />;
 
@@ -73,6 +90,19 @@ export function Shell(): ReactNode {
             <NavLink to={routes.orgDataRights(activeOrgId)}>Data rights</NavLink>
             <NavLink to={routes.orgCompliance(activeOrgId)}>Compliance</NavLink>
             <NavLink to={routes.orgAnalytics(activeOrgId)}>Analytics</NavLink>
+          </>
+        ) : null}
+        {activeOrgId && learningEnabled ? (
+          <>
+            <NavLink to={routes.orgLearningHome(activeOrgId)}>My learning</NavLink>
+            <NavLink to={routes.orgLearningSkillsProfile(activeOrgId)}>My skills profile</NavLink>
+          </>
+        ) : null}
+        {activeOrgId && learningEnabled && isLearningAdmin ? (
+          <>
+            <NavLink to={routes.orgLearningAdmin(activeOrgId)}>Learning admin</NavLink>
+            <NavLink to={routes.orgLearningPathways(activeOrgId)}>Pathways</NavLink>
+            <NavLink to={routes.orgLearningManagerView(activeOrgId)}>Learning completion</NavLink>
           </>
         ) : null}
         {isPlatformAdmin ? (

@@ -21,6 +21,13 @@ import { ReviewWorkspacePage } from "./pages/ReviewWorkspacePage.js";
 import { EvidenceProfilePage } from "./pages/EvidenceProfilePage.js";
 import { CandidateEntryPage } from "./pages/CandidateEntryPage.js";
 import { CandidatePortalPage } from "./pages/CandidatePortalPage.js";
+import { LearningAdminPage } from "./pages/LearningAdminPage.js";
+import { CourseBuilderPage } from "./pages/CourseBuilderPage.js";
+import { PathwaysPage } from "./pages/PathwaysPage.js";
+import { LearnerHomePage } from "./pages/LearnerHomePage.js";
+import { LessonPlayerPage } from "./pages/LessonPlayerPage.js";
+import { ManagerViewPage } from "./pages/ManagerViewPage.js";
+import { SkillsProfilePage } from "./pages/SkillsProfilePage.js";
 import "./styles.css";
 
 /** Root ("/") redirects to sign-in or a role-appropriate landing page. */
@@ -87,6 +94,13 @@ function AppRoutes(): ReactNode {
         <Route path="/org/:orgId/reviews" element={<ReviewQueuePage />} />
         <Route path="/org/:orgId/reviews/:reviewId" element={<ReviewWorkspacePage />} />
         <Route path="/org/:orgId/sessions/:sessionId/profile" element={<EvidenceProfilePage />} />
+        <Route path={routes.orgLearningHome(":orgId")} element={<LearnerHomePage />} />
+        <Route path={routes.orgLearningAdmin(":orgId")} element={<LearningAdminPage />} />
+        <Route path={routes.orgLearningCourseBuilder(":orgId", ":courseId")} element={<CourseBuilderPage />} />
+        <Route path={routes.orgLearningPathways(":orgId")} element={<PathwaysPage />} />
+        <Route path={routes.orgLearningLesson(":orgId", ":enrollmentId", ":lessonId")} element={<LessonPlayerPage />} />
+        <Route path={routes.orgLearningManagerView(":orgId")} element={<ManagerViewPage />} />
+        <Route path={routes.orgLearningSkillsProfile(":orgId")} element={<SkillsProfilePage />} />
       </Route>
       <Route path="/" element={<RootRedirect />} />
       <Route path="*" element={<NotFoundPage />} />

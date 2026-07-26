@@ -1,20 +1,19 @@
 # Completion Report — CPF Enterprise Ecosystem
 
-Reporting date: 2026-07-26 (sixth build cycle — delivery-plan Steps 30–39:
-GitHub push + green CI, production container, staging runbook, observability,
-backup/restore drill, subscriptions & entitlement enforcement, support
-console, compliance console, platform analytics + reviewer-minutes
-telemetry) · Reporting standard: directive §21 (no premature completion
-claims). This is the authoritative status document.
+Reporting date: 2026-07-26 (seventh build cycle — delivery-plan Steps 40–42:
+Learning data model, Learning APIs, Learning UI) · Reporting standard:
+directive §21 (no premature completion claims). This is the authoritative
+status document.
 
 **Merge status note:** this report reflects work verified on this step's own
-feature branch (`feat/step-39-platform-analytics`, branched from `main` at
-`ce70408`). Steps 30–38 were each implemented, tested, and reported on their
-own feature branches per the established PR-per-step workflow; at the time of
-writing `main` itself has Steps 1–29 plus Steps 37/38 merged (PRs #3/#4) —
-Steps 30–36 exist on still-open branches pending user review/merge via the
-GitHub web UI. This section reports the cumulative state across all of them
-honestly, regardless of merge order.
+feature branch (`feat/step-42-learning-ui`, stacked on top of the still-open
+`feat/step-41-learning-apis`, itself stacked on top of `feat/step-40-learning-data-model`).
+Steps 30–41 were each implemented, tested, and reported on their own feature
+branches per the established PR-per-step workflow; at the time of writing
+`main` has Steps 1–29 plus Steps 30 and 37–41 merged — some earlier-numbered
+branches remain open pending user review/merge via the GitHub web UI. This
+section reports the cumulative state across all of them honestly, regardless
+of merge order.
 
 ## Release judgement
 
@@ -29,7 +28,7 @@ remaining)** — employer portal, reviewer workspace, candidate portal, and
 platform administration. No compliance certification is claimed. No real
 candidate data has ever entered this system.
 
-## Fully implemented and tested — 254 automated tests green, 1 intentionally skipped (verified locally 2026-07-26)
+## Fully implemented and tested — 295 automated tests green, 1 intentionally skipped (verified locally 2026-07-26)
 
 | Layer | Evidence |
 |---|---|
@@ -129,7 +128,13 @@ request in the API access log returned 200; no console/network errors.
 6. **Subscriptions & entitlements (Steps 35–36, CPF-54):** platform-owned `plans`/`org_subscriptions` tables (no RLS — platform-only visibility, by design), plan CRUD + org suspend/resume (a suspended org gets `403 ORG_SUSPENDED` on every org-scoped route, checked once per request via the existing `requireOrgRole` guard), a `requireModuleEntitlement` guard applied across every assessment-related route, per-plan `maxActiveAssessments` enforcement (`422 PLAN_LIMIT_REACHED`), and a usage-vs-limit dashboard on the Team page.
 7. **Support console / JIT access (Step 37, CPF-?):** time-boxed, audited `support_access_grants` (≤4h expiry, org-admin-approved or platform-admin break-glass, always dual-logged in both org and platform audit scopes) gating a metadata-only cross-org summary endpoint — no evidence-content access exists, and none is granted by any current scope value.
 8. **Compliance operations console (Step 38):** a paginated/filtered audit-log explorer, step-up-gated CSV export (personal-data egress requires fresh re-authentication), and a retention-policy editor, all org-admin-only, unified into one `CompliancePage` in the web app.
-9. **Platform analytics + reviewer-minutes telemetry (Step 39, MILESTONE, this step):** `reviews.started_at` (set on a reviewer's first saved score) makes `finalised_at − started_at` a real, measurable "reviewer minutes" figure. New org-level analytics endpoint (`GET /v1/orgs/:orgId/analytics` — own-org-only data: assessments by status/template, median reviewer minutes by template, completion rate, and a candidate-level "challenge rate" derived from data-rights `challenge` requests) and a platform-level endpoint (`GET /v1/platform/analytics`, platform-admin-only, aggregated across every organisation). Per-template platform cells are suppressed (`null`, never a fabricated `0`) unless at least 5 distinct organisations have used that template, preventing a low-cardinality cell from being read back to a single org's private data — enforced with a new, narrow, read-only row-level-security escape hatch (migration 0015's `platform_read_all()`, added to `USING` only, never to `WITH CHECK`, so it can never be used to write or move data across a tenant boundary). Both org and platform web dashboards show each figure's definition inline. This is the evidence base the plan calls for feeding into the pricing decision (R-09); the actual pricing decision itself remains a founder call (A-02).
+9. **Platform analytics + reviewer-minutes telemetry (Step 39, MILESTONE):** `reviews.started_at` (set on a reviewer's first saved score) makes `finalised_at − started_at` a real, measurable "reviewer minutes" figure. New org-level analytics endpoint (`GET /v1/orgs/:orgId/analytics` — own-org-only data: assessments by status/template, median reviewer minutes by template, completion rate, and a candidate-level "challenge rate" derived from data-rights `challenge` requests) and a platform-level endpoint (`GET /v1/platform/analytics`, platform-admin-only, aggregated across every organisation). Per-template platform cells are suppressed (`null`, never a fabricated `0`) unless at least 5 distinct organisations have used that template, preventing a low-cardinality cell from being read back to a single org's private data — enforced with a new, narrow, read-only row-level-security escape hatch (migration 0015's `platform_read_all()`, added to `USING` only, never to `WITH CHECK`, so it can never be used to write or move data across a tenant boundary). Both org and platform web dashboards show each figure's definition inline. This is the evidence base the plan calls for feeding into the pricing decision (R-09); the actual pricing decision itself remains a founder call (A-02).
+
+## Seventh build cycle additions (Steps 40–42, disclosed per §21)
+
+1. **Learning data model (Step 40, CPF-59):** migration 0016 adds `courses`/`course_modules`/`lessons` (ordered authoring, draft/published/archived), `pathways`/`pathway_courses`, `learning_enrollments`, and `lesson_progress` — every table RLS-isolated identically to the rest of the schema. Structurally enforced: no foreign key in this migration references `candidates`/`invitations`/`assessment_sessions`/`reviews`/`criterion_scores`, keeping learning fully separate from hiring evidence. New `learningEnrollmentMachine` (`enrolled → in_progress → completed`/`withdrawn`) in `@cpf/assessment-framework`.
+2. **Learning APIs (Step 41, CPF-60):** migration 0017 adds `learning_assessment_attempts` (a learner's own practice-mode input + resulting evidence-profile snapshot, again with no FK path into hiring evidence). Full v1 route surface: admin course/module/lesson authoring with a publish step that freezes a sha256 checksum and locks the structure (`409 COURSE_NOT_DRAFT` on any further edit); pathway authoring + ordered course-linking; bulk enrolment; learner-facing progress endpoints (self-scoped, state-machine-gated); and a practice-assessment-attempt endpoint that reuses the real `evaluate()` scoring engine used by the hiring workflow. v1 scope is explicitly course-enrolment only — a pathway-based enrolment gets a clear, honestly disclosed `422`, not silent unsupported behaviour.
+3. **Learning UI (Step 42, MILESTONE):** 3 new learner/admin routes (enrollment detail with per-lesson completion, a learner's own skills profile, and a manager-view completion aggregate) plus 7 new web pages covering the full author → publish → enrol → learn → complete → review journey. The manager-view route is an explicitly disclosed scope reduction: the delivery plan calls for aggregation "by team", but the schema has no team/reporting-line concept (`org_memberships` is flat org+role only), so it aggregates by course, org-wide instead — reusing Step 39's k-anonymity pattern (cells with fewer than 5 enrolled learners are suppressed, never a fabricated exact count). `Shell.tsx` gained the codebase's first client-side module-entitlement check (a cheap status-route probe), gating all Learning navigation.
 
 ## Defects found and fixed by our own tests this cycle (disclosed per §21)
 
@@ -161,8 +166,15 @@ request in the API access log returned 200; no console/network errors.
    request bodies, which Fastify itself already classifies as `400` —
    misreporting a client mistake as a server fault. Fixed: any error carrying
    a Fastify-assigned 4xx `statusCode` not already special-cased is now
-   honestly forwarded with that status instead of defaulting to 500.
-
+   honestly forwarded with that status instead of defaulting to 500.7. **(Seventh cycle, Step 42)** The same class of bug as defect #5 recurred:
+   `CourseBuilderPage.tsx` imported `TEMPLATE_CODES` from the bare
+   `@cpf/assessment-framework` package root (rather than a pure subpath),
+   again transitively pulling in `data.ts`'s `node:fs` usage and breaking
+   `vite build` — invisible to `tsc --noEmit` and `vitest`, caught only by
+   actually running the production build. Fixed by fetching the template
+   catalogue from the existing `GET /v1/framework/templates` API route
+   instead of importing package internals; the standing convention from
+   defect #5 has been reinforced in repo memory given this repeat.
 ## Implemented, awaiting first CI execution
 
 GitHub Actions workflows (typecheck/test/audit/build + migrations + the same
@@ -174,8 +186,9 @@ environment).
 
 - File uploads beyond the CSV import path (e.g. resume/document attachments) —
   no binary upload/malware-scanning pipeline exists yet; not required until one is added.
-- Learning module, workforce intelligence, AI gateway, plugin/module framework
-  — none started (Steps 40–46).
+- Learning module core (data model, APIs, UI) is now implemented (Steps
+  40–42); workforce intelligence, AI gateway, plugin/module framework remain
+  not started (Steps 43–46).
 - Actual staging/production provisioning — the runbook and container are
   ready (Steps 31–32), but real provisioning needs cloud credentials this
   environment doesn't have (USER-GATED).

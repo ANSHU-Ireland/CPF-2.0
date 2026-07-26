@@ -32,6 +32,9 @@ const authorRoles = [
   requireOrgRole("org_admin", "learning_admin"),
   requireModuleEntitlement("learning"),
 ];
+
+/** k-anonymity floor for the manager aggregate view (Step 42) — see route below. */
+const MIN_ENROLLED_FOR_MANAGER_CELL = 5;
 const learnerRoles = [
   requireOrgRole("org_admin", "hiring_manager", "reviewer", "learning_admin", "support_agent"),
   requireModuleEntitlement("learning"),
@@ -457,6 +460,172 @@ export function registerLearningRoutes(app: FastifyInstance): void {
         [userId],
       );
       return rows.rows;
+    });
+  });
+
+  // Enrolment detail: powers LearnerHomePage's detail view and
+  // LessonPlayerPage. Course-based enrolments get full module/lesson content
+  // (with this enrolment's own per-lesson completion flag joined in);
+  // pathway-based enrolments get only the linked-course list — the same v1
+  // scope limitation already disclosed for practice-attempt (no lesson-level
+  // player for pathways yet).
+  app.get<{ Params: { enrollmentId: string } }>(
+    "/v1/orgs/:orgId/learning/enrollments/:enrollmentId",
+    { preHandler: learnerRoles },
+    async (request, reply) => {
+      const orgId = request.orgId!;
+      const userId = request.auth!.userId;
+      const { enrollmentId } = request.params;
+      const result = await withOrgTx(orgId, async (client) => {
+        const enrollment = await client.query<{
+          id: string;
+          user_id: string;
+          status: string;
+          course_id: string | null;
+          pathway_id: string | null;
+          started_at: string | null;
+          completed_at: string | null;
+        }>(
+          "SELECT id, user_id, status, course_id, pathway_id, started_at, completed_at FROM learning_enrollments WHERE id = $1",
+          [enrollmentId],
+        );
+        if (!enrollment.rows[0]) return { notFound: true as const };
+        if (enrollment.rows[0].user_id !== userId) return { forbidden: true as const };
+        const e = enrollment.rows[0];
+        let course: unknown = null;
+        let pathway: unknown = null;
+        if (e.course_id) {
+          const courseRow = await client.query(
+            `SELECT id, title, status FROM courses WHERE id = $1`,
+            [e.course_id],
+          );
+          const modules = await client.query(
+            `SELECT id, title, position FROM course_modules WHERE course_id = $1 ORDER BY position`,
+            [e.course_id],
+          );
+          const lessons = await client.query(
+            `SELECT l.id, l.course_module_id, l.title, l.position, l.practice_template_code,
+                    (p.completed_at IS NOT NULL) AS completed
+               FROM lessons l
+               JOIN course_modules m ON m.id = l.course_module_id
+               LEFT JOIN lesson_progress p ON p.lesson_id = l.id AND p.enrollment_id = $2
+              WHERE m.course_id = $1
+              ORDER BY l.position`,
+            [e.course_id, enrollmentId],
+          );
+          course = {
+            ...courseRow.rows[0],
+            modules: modules.rows.map((m) => ({
+              ...m,
+              lessons: lessons.rows.filter((l) => l.course_module_id === m.id),
+            })),
+          };
+        } else if (e.pathway_id) {
+          const pathwayRow = await client.query(
+            `SELECT id, title, status FROM pathways WHERE id = $1`,
+            [e.pathway_id],
+          );
+          const courses = await client.query(
+            `SELECT pc.position, c.id, c.title, c.status
+               FROM pathway_courses pc JOIN courses c ON c.id = pc.course_id
+              WHERE pc.pathway_id = $1 ORDER BY pc.position`,
+            [e.pathway_id],
+          );
+          pathway = { ...pathwayRow.rows[0], courses: courses.rows };
+        }
+        return {
+          id: e.id,
+          status: e.status,
+          startedAt: e.started_at,
+          completedAt: e.completed_at,
+          course,
+          pathway,
+        };
+      });
+      if ("notFound" in result) return sendError(reply, 404, "NOT_FOUND", "Enrolment not found.", request.id);
+      if ("forbidden" in result) return sendError(reply, 403, "FORBIDDEN", "This is not your enrolment.", request.id);
+      return result;
+    },
+  );
+
+  // Learner's own skills profile (Step 42): completed courses/pathways plus
+  // their own most recent practice-attempt evidence profiles — self-view
+  // only, built entirely from this user's own rows.
+  app.get("/v1/orgs/:orgId/learning/my-skills-profile", { preHandler: learnerRoles }, async (request) => {
+    const orgId = request.orgId!;
+    const userId = request.auth!.userId;
+    return withOrgTx(orgId, async (client) => {
+      const completedCourses = await client.query(
+        `SELECT c.id, c.title, e.completed_at
+           FROM learning_enrollments e JOIN courses c ON c.id = e.course_id
+          WHERE e.user_id = $1 AND e.status = 'completed'
+          ORDER BY e.completed_at DESC`,
+        [userId],
+      );
+      const completedPathways = await client.query(
+        `SELECT p.id, p.title, e.completed_at
+           FROM learning_enrollments e JOIN pathways p ON p.id = e.pathway_id
+          WHERE e.user_id = $1 AND e.status = 'completed'
+          ORDER BY e.completed_at DESC`,
+        [userId],
+      );
+      const practiceAttempts = await client.query(
+        `SELECT DISTINCT ON (template_code) id, template_code, profile, created_at
+           FROM learning_assessment_attempts
+          WHERE user_id = $1
+          ORDER BY template_code, created_at DESC`,
+        [userId],
+      );
+      return {
+        completedCourses: completedCourses.rows,
+        completedPathways: completedPathways.rows,
+        practiceAttempts: practiceAttempts.rows,
+      };
+    });
+  });
+
+  // Manager aggregate view (Step 42): completion counts per course, org-wide.
+  // SCOPE NOTE: the delivery plan calls this "by team", but the schema has
+  // no team/reporting-line concept (org_memberships is flat org+role) — this
+  // aggregates by COURSE across the whole organisation instead, an explicit,
+  // disclosed scope reduction rather than inventing a team hierarchy this
+  // step didn't budget for. k-anonymity floor still applies: a course's row
+  // is suppressed unless at least MIN_ENROLLED_FOR_MANAGER_CELL learners are
+  // enrolled in it, so no cell can ever reveal a single learner's standing.
+  app.get("/v1/orgs/:orgId/learning/manager-view", { preHandler: authorRoles }, async (request) => {
+    const orgId = request.orgId!;
+    return withOrgTx(orgId, async (client) => {
+      const rows = await client.query<{
+        course_id: string;
+        title: string;
+        enrolled_count: number;
+        completed_count: number;
+      }>(
+        `SELECT c.id AS course_id, c.title,
+                count(e.id)::int AS enrolled_count,
+                count(e.id) FILTER (WHERE e.status = 'completed')::int AS completed_count
+           FROM courses c
+           LEFT JOIN learning_enrollments e ON e.course_id = c.id
+          WHERE c.organisation_id = $1
+          GROUP BY c.id, c.title
+          ORDER BY c.title`,
+        [orgId],
+      );
+      const courses = rows.rows.map((r) => {
+        const suppressed = r.enrolled_count < MIN_ENROLLED_FOR_MANAGER_CELL;
+        return {
+          courseId: r.course_id,
+          title: r.title,
+          suppressed,
+          enrolledCount: suppressed ? null : r.enrolled_count,
+          completedCount: suppressed ? null : r.completed_count,
+          completionRate: suppressed || r.enrolled_count === 0 ? null : r.completed_count / r.enrolled_count,
+        };
+      });
+      return {
+        courses,
+        suppressionNote: `A course's completion figures are shown only once at least ${MIN_ENROLLED_FOR_MANAGER_CELL} learners are enrolled in it, so no cell can reveal a single learner's standing.`,
+      };
     });
   });
 

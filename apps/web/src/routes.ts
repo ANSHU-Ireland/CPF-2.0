@@ -21,4 +21,13 @@ export const routes = {
   orgReview: (orgId: string, reviewId: string) => `/org/${orgId}/reviews/${reviewId}`,
   sessionProfile: (orgId: string, sessionId: string) =>
     `/org/${orgId}/sessions/${sessionId}/profile`,
+  orgLearningHome: (orgId: string) => `/org/${orgId}/learning`,
+  orgLearningAdmin: (orgId: string) => `/org/${orgId}/learning/admin`,
+  orgLearningCourseBuilder: (orgId: string, courseId: string) =>
+    `/org/${orgId}/learning/admin/courses/${courseId}`,
+  orgLearningPathways: (orgId: string) => `/org/${orgId}/learning/pathways`,
+  orgLearningLesson: (orgId: string, enrollmentId: string, lessonId: string) =>
+    `/org/${orgId}/learning/enrollments/${enrollmentId}/lessons/${lessonId}`,
+  orgLearningManagerView: (orgId: string) => `/org/${orgId}/learning/manager-view`,
+  orgLearningSkillsProfile: (orgId: string) => `/org/${orgId}/learning/skills-profile`,
 };
