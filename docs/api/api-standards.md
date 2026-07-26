@@ -48,6 +48,12 @@ messages never reach clients. 400 request validation · 401/403 authn/z ·
 | GET | /v1/orgs/:orgId/ai/settings | org_admin | AI gateway org-level opt-in status (ADR-0005, CPF-64) |
 | PUT | /v1/orgs/:orgId/ai/settings | org_admin | toggles the AI gateway org-level kill switch (ADR-0005, CPF-64) |
 | POST | /v1/orgs/:orgId/reviews/:reviewId/ai-assist | reviewer | reviewer-assist AI suggestion (AIF-01); org+platform kill switches, budget, allow-list, PII redaction; advisory only, never auto-applied (CPF-64) |
+| GET | /v1/orgs/:orgId/modules | any org role | plugin/module registry: entitled module manifests only, for dynamic nav rendering (Delivery Plan Step 46, CPF-65) |
+| GET | /v1/orgs/:orgId/workflow-insights/status | any org role | cheap entitlement smoke-check (CPF-65) |
+| GET | /v1/orgs/:orgId/workflow-insights/proposals | org_admin | lists workflow-insight proposals, optional `?status=` filter (CPF-65) |
+| POST | /v1/orgs/:orgId/workflow-insights/generate | org_admin | proposes actions from pain-point themes + learning gaps (k=8 suppression floor reused from CPF-63); idempotent per open signal (CPF-65) |
+| POST | /v1/orgs/:orgId/workflow-insights/proposals/:proposalId/approve | org_admin | records approval only — no automated action taken (autonomy level 2, CPF-65) |
+| POST | /v1/orgs/:orgId/workflow-insights/proposals/:proposalId/dismiss | org_admin | records dismissal only (CPF-65) |
 
 \* Deliberate scope boundary: only non-personal framework content and stateless
 computation are exposed until the identity module (CPF-40) lands. Every future

@@ -225,6 +225,20 @@ const ROUTE_TABLE: RouteSpec[] = [
     body: { enabled: true },
   },
   { method: "POST", path: "/v1/orgs/:orgId/reviews/:reviewId/ai-assist", roles: ["reviewer"] },
+  {
+    method: "GET",
+    path: "/v1/orgs/:orgId/modules",
+    roles: ["org_admin", "hiring_manager", "reviewer", "learning_admin", "support_agent"],
+  },
+  {
+    method: "GET",
+    path: "/v1/orgs/:orgId/workflow-insights/status",
+    roles: ["org_admin", "hiring_manager", "reviewer", "learning_admin", "support_agent"],
+  },
+  { method: "GET", path: "/v1/orgs/:orgId/workflow-insights/proposals", roles: ["org_admin"] },
+  { method: "POST", path: "/v1/orgs/:orgId/workflow-insights/generate", roles: ["org_admin"] },
+  { method: "POST", path: "/v1/orgs/:orgId/workflow-insights/proposals/:proposalId/approve", roles: ["org_admin"] },
+  { method: "POST", path: "/v1/orgs/:orgId/workflow-insights/proposals/:proposalId/dismiss", roles: ["org_admin"] },
 ];
 
 function resolvePath(spec: RouteSpec, orgId: string): string {
@@ -312,7 +326,7 @@ run("CPF authorization matrix (CPF-47)", () => {
     // (plan-based entitlement is covered separately in entitlements.test.ts).
     await admin.query(
       `INSERT INTO plans (code, name, module_entitlements, limits)
-       VALUES ('it-authz-full-access', 'IT Authz Full Access', '{"assessments":true,"learning":true,"intelligence":true,"ai_gateway":true}'::jsonb, '{}'::jsonb)
+       VALUES ('it-authz-full-access', 'IT Authz Full Access', '{"assessments":true,"learning":true,"intelligence":true,"ai_gateway":true,"workflow_insights":true}'::jsonb, '{}'::jsonb)
        ON CONFLICT (code) DO UPDATE SET module_entitlements = EXCLUDED.module_entitlements`,
     );
     await admin.query(

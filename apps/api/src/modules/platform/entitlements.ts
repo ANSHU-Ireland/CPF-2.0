@@ -9,9 +9,12 @@ import type { Queryable } from "../../db/pool.js";
  * gateway's kill switch (ADR-0005) — it defaults to false and, even once an
  * org is entitled, the org must ALSO opt in via org_ai_settings AND the
  * platform-level switch must be on. No org has any AI product feature
- * reachable by default.
+ * reachable by default. "workflow_insights" (Step 46) is the first module
+ * mounted through the plugin/module registry (module-registry.ts) — see that
+ * file's doc comment for the manifest convention every future pluggable
+ * module should follow.
  */
-export type ModuleKey = "assessments" | "learning" | "intelligence" | "ai_gateway";
+export type ModuleKey = "assessments" | "learning" | "intelligence" | "ai_gateway" | "workflow_insights";
 
 /**
  * Baseline entitlement for organisations with no active subscription row.
@@ -24,6 +27,7 @@ export const DEFAULT_MODULE_ENTITLEMENTS: Record<ModuleKey, boolean> = {
   learning: false,
   intelligence: false,
   ai_gateway: false,
+  workflow_insights: false,
 };
 
 export interface OrgPlan {

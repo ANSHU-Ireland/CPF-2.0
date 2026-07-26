@@ -34,4 +34,5 @@ export const routes = {
   orgPainPoints: (orgId: string) => `/org/${orgId}/intelligence/pain-points`,
   orgIntelligenceInsights: (orgId: string) => `/org/${orgId}/intelligence/insights`,
   orgIntelligenceTransparency: (orgId: string) => `/org/${orgId}/intelligence/transparency`,
+  orgWorkflowInsights: (orgId: string) => `/org/${orgId}/workflow-insights`,
 };

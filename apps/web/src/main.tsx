@@ -32,6 +32,7 @@ import { IntelligenceSettingsPage } from "./pages/IntelligenceSettingsPage.js";
 import { PainPointsPage } from "./pages/PainPointsPage.js";
 import { InsightsDashboardPage } from "./pages/InsightsDashboardPage.js";
 import { TransparencyPage } from "./pages/TransparencyPage.js";
+import { WorkflowInsightsPage } from "./pages/WorkflowInsightsPage.js";
 import "./styles.css";
 
 /** Root ("/") redirects to sign-in or a role-appropriate landing page. */
@@ -109,6 +110,7 @@ function AppRoutes(): ReactNode {
         <Route path={routes.orgPainPoints(":orgId")} element={<PainPointsPage />} />
         <Route path={routes.orgIntelligenceInsights(":orgId")} element={<InsightsDashboardPage />} />
         <Route path={routes.orgIntelligenceTransparency(":orgId")} element={<TransparencyPage />} />
+        <Route path={routes.orgWorkflowInsights(":orgId")} element={<WorkflowInsightsPage />} />
       </Route>
       <Route path="/" element={<RootRedirect />} />
       <Route path="*" element={<NotFoundPage />} />

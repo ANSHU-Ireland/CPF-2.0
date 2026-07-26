@@ -669,4 +669,45 @@ export interface TokenCostView {
   reason: string;
 }
 
+// ---------------------------------------------------------------------------
+// Plugin/module registry + Workflow Insights (Delivery Plan Step 46)
+// ---------------------------------------------------------------------------
+
+export interface ModuleNavigationEntry {
+  label: string;
+  path: string;
+}
+
+export interface ModuleManifestView {
+  key: string;
+  name: string;
+  version: string;
+  navigation: ModuleNavigationEntry[];
+  permissions: string[];
+}
+
+export interface OrgModulesView {
+  orgId: string;
+  modules: ModuleManifestView[];
+}
+
+export type WorkflowInsightSourceType = "pain_point_theme" | "learning_gap";
+export type WorkflowInsightStatus = "proposed" | "approved" | "dismissed";
+
+export interface WorkflowInsightProposal {
+  id: string;
+  sourceType: WorkflowInsightSourceType;
+  sourceKey: string;
+  title: string;
+  rationale: string;
+  status: WorkflowInsightStatus;
+  decidedByUserId: string | null;
+  decidedAt: string | null;
+  createdAt: string;
+}
+
+export interface WorkflowInsightProposalsView {
+  proposals: WorkflowInsightProposal[];
+}
+
 
