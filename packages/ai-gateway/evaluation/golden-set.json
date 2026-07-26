@@ -1,0 +1,35 @@
+{
+  "notice": "SYNTHETIC FIXTURE DATA ONLY. No real candidate, reviewer, or session data appears in this file. Used exclusively to exercise the AIF-01 evaluation harness pipeline (docs/ai-governance/ai-governance.md) ahead of a real provider/prompt being selected.",
+  "cases": [
+    {
+      "sessionId": "synthetic-001",
+      "label": "synthetic-fixture",
+      "workspaceEvidenceSummary": "candidate wrote unit tests before implementing the function, then verified edge cases against the spec",
+      "expectedClaimKeywords": ["unit tests", "edge cases"]
+    },
+    {
+      "sessionId": "synthetic-002",
+      "label": "synthetic-fixture",
+      "workspaceEvidenceSummary": "candidate refactored the module for clarity and re-ran the full test suite twice to confirm no regressions",
+      "expectedClaimKeywords": ["refactored", "full test suite", "no regressions"]
+    },
+    {
+      "sessionId": "synthetic-003",
+      "label": "synthetic-fixture",
+      "workspaceEvidenceSummary": "candidate asked the assistant three targeted questions about a null-pointer edge case and manually verified the fix",
+      "expectedClaimKeywords": ["targeted questions", "manually verified"]
+    },
+    {
+      "sessionId": "synthetic-004",
+      "label": "synthetic-fixture",
+      "workspaceEvidenceSummary": "candidate pasted a large block of generated code with no edits and no verification note",
+      "expectedClaimKeywords": ["no edits", "no verification note"]
+    },
+    {
+      "sessionId": "synthetic-005",
+      "label": "synthetic-fixture",
+      "workspaceEvidenceSummary": "candidate iterated through four prompt revisions to narrow the requirements before writing any code",
+      "expectedClaimKeywords": ["four prompt revisions", "before writing any code"]
+    }
+  ]
+}

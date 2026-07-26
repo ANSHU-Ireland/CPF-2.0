@@ -16,6 +16,7 @@
     "openapi:generate": "node scripts/generate-openapi.mjs"
   },
   "dependencies": {
+    "@cpf/ai-gateway": "*",
     "@cpf/assessment-framework": "*",
     "@cpf/identity": "*",
     "fastify": "^5.2.0",

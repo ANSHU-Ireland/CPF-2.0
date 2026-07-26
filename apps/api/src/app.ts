@@ -18,6 +18,11 @@ import { InMemoryRateLimitStore } from "./modules/rate-limit.js";
 import { registerAuthRoutes } from "./modules/auth/routes.js";
 import { registerCandidatePortalRoutes } from "./modules/candidate/portal.js";
 import { registerAcknowledgementRoutes } from "./modules/org/acknowledgements.js";
+import {
+  registerAiGatewayRoutes,
+  DEFAULT_AI_GATEWAY_MODULE_OPTIONS,
+  type AiGatewayModuleOptions,
+} from "./modules/org/ai-gateway.js";
 import { registerOrgAnalyticsRoutes } from "./modules/org/analytics.js";
 import { registerCalibrationRoutes } from "./modules/org/calibration.js";
 import { registerClaimsRoutes } from "./modules/org/claims.js";
@@ -57,6 +62,12 @@ export interface BuildAppOptions {
    * redaction behaviour can be observed. Never set outside tests.
    */
   loggerStream?: Writable;
+  /**
+   * AI gateway (ADR-0005, Delivery Plan Step 45) module wiring. Every field
+   * defaults to fully-disabled (DEFAULT_AI_GATEWAY_MODULE_OPTIONS) — callers
+   * (server.ts in production, tests directly) opt in explicitly.
+   */
+  aiGateway?: Partial<AiGatewayModuleOptions>;
 }
 
 /**
@@ -289,6 +300,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     registerUsageRoutes(app);
     registerLearningRoutes(app);
     registerIntelligenceRoutes(app);
+    registerAiGatewayRoutes(app, { ...DEFAULT_AI_GATEWAY_MODULE_OPTIONS, ...options.aiGateway });
     registerSupportAccessRoutes(app);
     registerComplianceRoutes(app);
     registerOrgAnalyticsRoutes(app);

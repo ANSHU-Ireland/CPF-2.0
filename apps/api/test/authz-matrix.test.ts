@@ -214,6 +214,17 @@ const ROUTE_TABLE: RouteSpec[] = [
   { method: "GET", path: "/v1/orgs/:orgId/intelligence/skills-gap", roles: ["org_admin"] },
   { method: "GET", path: "/v1/orgs/:orgId/intelligence/ai-adoption", roles: ["org_admin"] },
   { method: "GET", path: "/v1/orgs/:orgId/intelligence/token-cost", roles: ["org_admin"] },
+  { method: "GET", path: "/v1/orgs/:orgId/ai/settings", roles: ["org_admin"] },
+  {
+    method: "PUT",
+    path: "/v1/orgs/:orgId/ai/settings",
+    roles: ["org_admin"],
+    // Re-enabling an already-enabled fixture org is idempotent-safe (unlike
+    // intelligence's works-council-ack gate, there is no destructive side
+    // effect here for an allowed caller passing the gate).
+    body: { enabled: true },
+  },
+  { method: "POST", path: "/v1/orgs/:orgId/reviews/:reviewId/ai-assist", roles: ["reviewer"] },
 ];
 
 function resolvePath(spec: RouteSpec, orgId: string): string {
@@ -301,8 +312,8 @@ run("CPF authorization matrix (CPF-47)", () => {
     // (plan-based entitlement is covered separately in entitlements.test.ts).
     await admin.query(
       `INSERT INTO plans (code, name, module_entitlements, limits)
-       VALUES ('it-authz-full-access', 'IT Authz Full Access', '{"assessments":true,"learning":true,"intelligence":true}'::jsonb, '{}'::jsonb)
-       ON CONFLICT (code) DO NOTHING`,
+       VALUES ('it-authz-full-access', 'IT Authz Full Access', '{"assessments":true,"learning":true,"intelligence":true,"ai_gateway":true}'::jsonb, '{}'::jsonb)
+       ON CONFLICT (code) DO UPDATE SET module_entitlements = EXCLUDED.module_entitlements`,
     );
     await admin.query(
       `INSERT INTO org_subscriptions (organisation_id, plan_id)
@@ -320,6 +331,18 @@ run("CPF authorization matrix (CPF-47)", () => {
     await admin.query(
       `INSERT INTO org_intelligence_settings (organisation_id, enabled, works_council_acknowledged_by, works_council_acknowledged_at, enabled_at)
        VALUES ($1, true, 'IT Fixture Works Council Rep', now(), now())
+       ON CONFLICT (organisation_id) DO UPDATE SET enabled = true, updated_at = now()`,
+      [orgAId],
+    );
+
+    // Step 45's ai-assist route has the same third-gate shape (org must
+    // separately opt in via org_ai_settings) — enable it directly for this
+    // fixture org so an allowed reviewer reaches the route's own 404
+    // not-found logic (dummy reviewId) rather than being indistinguishable
+    // from a denied caller.
+    await admin.query(
+      `INSERT INTO org_ai_settings (organisation_id, enabled, enabled_at)
+       VALUES ($1, true, now())
        ON CONFLICT (organisation_id) DO UPDATE SET enabled = true, updated_at = now()`,
       [orgAId],
     );

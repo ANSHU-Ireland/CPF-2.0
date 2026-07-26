@@ -12,6 +12,22 @@ const app = buildApp({
     strictCapacity: Math.round(500 * m),
     strictRefillPerSecond: (500 / 60) * m,
   },
+  aiGateway: {
+    platformEnabled: config.AI_GATEWAY_ENABLED,
+    isTestEnv: config.NODE_ENV === "test",
+    ...(config.AI_PROVIDER_BASE_URL !== undefined && config.AI_PROVIDER_API_KEY !== undefined
+      ? { provider: { baseUrl: config.AI_PROVIDER_BASE_URL, apiKey: config.AI_PROVIDER_API_KEY } }
+      : {}),
+    ...(config.AI_GATEWAY_TEST_STUB_RESPONSE !== undefined
+      ? { testStubResponse: config.AI_GATEWAY_TEST_STUB_RESPONSE }
+      : {}),
+    allowedModel: config.AI_ALLOWED_MODEL,
+    allowedModelVersion: config.AI_ALLOWED_MODEL_VERSION,
+    region: config.AI_REGION,
+    timeoutMs: config.AI_REQUEST_TIMEOUT_MS,
+    dailyTokenBudget: config.AI_DAILY_TOKEN_BUDGET,
+    dailyCostBudgetUsdCents: config.AI_DAILY_COST_BUDGET_USD_CENTS,
+  },
 });
 
 const shutdown = async (signal: string): Promise<void> => {
