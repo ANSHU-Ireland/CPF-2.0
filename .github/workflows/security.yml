@@ -122,6 +122,13 @@ jobs:
           except json.JSONDecodeError:
               pass
 
+          # GitHub currently uses these messages when dependency review
+          # is unavailable because dependency graph support is disabled.
+          unsupported_messages = (
+              "dependency review is not supported on this repository",
+              "dependency graph is not enabled",
+          )
+
           output_path = os.environ.get("GITHUB_OUTPUT")
           if not output_path:
               raise SystemExit("GITHUB_OUTPUT is not set")
@@ -132,10 +139,7 @@ jobs:
                   print("Dependency review API is available for this repository.")
               elif status in {403, 404, 422} and any(
                   marker in message.lower()
-                  for marker in (
-                      "dependency review is not supported on this repository",
-                      "dependency graph is not enabled",
-                  )
+                  for marker in unsupported_messages
               ):
                   output.write("supported=false\n")
                   print(
@@ -143,7 +147,10 @@ jobs:
                       "repository does not have dependency graph support enabled."
                   )
               else:
-                  print(body)
+                  print(
+                      "Dependency review preflight failed with status "
+                      f"{status}: {message[:200]}"
+                  )
                   raise SystemExit(
                       f"Unexpected dependency review preflight response: {status}"
                   )
