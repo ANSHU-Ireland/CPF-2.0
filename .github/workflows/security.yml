@@ -137,6 +137,8 @@ jobs:
               if status == 200:
                   output.write("supported=true\n")
                   print("Dependency review API is available for this repository.")
+              # GitHub surfaces unsupported dependency review requests with
+              # client-error responses rather than a stable single status code.
               elif status in {403, 404, 422} and any(
                   marker in message.lower()
                   for marker in unsupported_messages
