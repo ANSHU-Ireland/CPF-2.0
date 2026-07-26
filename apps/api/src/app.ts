@@ -24,6 +24,7 @@ import { registerClaimsRoutes } from "./modules/org/claims.js";
 import { registerComplianceRoutes } from "./modules/org/compliance.js";
 import { registerDataRightsRoutes } from "./modules/org/data-rights.js";
 import { registerHiringRoutes } from "./modules/org/hiring.js";
+import { registerIntelligenceRoutes } from "./modules/org/intelligence.js";
 import { registerLearningRoutes } from "./modules/org/learning.js";
 import { registerReviewRoutes } from "./modules/org/reviews.js";
 import { registerOrgViewsRoutes } from "./modules/org/views.js";
@@ -287,6 +288,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     registerCalibrationRoutes(app);
     registerUsageRoutes(app);
     registerLearningRoutes(app);
+    registerIntelligenceRoutes(app);
     registerSupportAccessRoutes(app);
     registerComplianceRoutes(app);
     registerOrgAnalyticsRoutes(app);
