@@ -112,6 +112,12 @@ const ROUTE_TABLE: RouteSpec[] = [
   { method: "POST", path: "/v1/orgs/:orgId/reviewer-calibrations", roles: ["org_admin"] },
   { method: "GET", path: "/v1/orgs/:orgId/reviewer-calibrations", roles: ["org_admin"] },
   { method: "DELETE", path: "/v1/orgs/:orgId/reviewer-calibrations/:recordId", roles: ["org_admin"] },
+  { method: "GET", path: "/v1/orgs/:orgId/usage", roles: ["org_admin"] },
+  {
+    method: "GET",
+    path: "/v1/orgs/:orgId/learning/status",
+    roles: ["org_admin", "hiring_manager", "learning_admin"],
+  },
 ];
 
 function resolvePath(spec: RouteSpec, orgId: string): string {
@@ -191,6 +197,23 @@ run("CPF authorization matrix (CPF-47)", () => {
 
     orgAId = await createOrg("it-authz-org-a");
     const orgBId = await createOrg("it-authz-org-b");
+
+    // Step 36's module-entitlement gate defaults an unsubscribed org to
+    // assessments-only; grant this fixture org every module (including the
+    // not-yet-built "learning" one, whose only route is a placeholder) so
+    // the matrix below tests purely the ROLE boundary, not the plan boundary
+    // (plan-based entitlement is covered separately in entitlements.test.ts).
+    await admin.query(
+      `INSERT INTO plans (code, name, module_entitlements, limits)
+       VALUES ('it-authz-full-access', 'IT Authz Full Access', '{"assessments":true,"learning":true,"intelligence":true}'::jsonb, '{}'::jsonb)
+       ON CONFLICT (code) DO NOTHING`,
+    );
+    await admin.query(
+      `INSERT INTO org_subscriptions (organisation_id, plan_id)
+       SELECT $1, id FROM plans WHERE code = 'it-authz-full-access'
+       ON CONFLICT (organisation_id) DO UPDATE SET plan_id = EXCLUDED.plan_id, updated_at = now()`,
+      [orgAId],
+    );
 
     for (const role of ORG_ROLES) {
       const email = `authz-${role}@it.cpf.test`;

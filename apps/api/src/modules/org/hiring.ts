@@ -4,7 +4,8 @@ import { generateToken, hashToken } from "@cpf/identity";
 import { invitationMachine, TEMPLATE_CODES } from "@cpf/assessment-framework";
 import { appendAudit } from "../../db/audit.js";
 import { withOrgTx } from "../../db/pool.js";
-import { requireOrgRole, sendError } from "../auth/guards.js";
+import { requireModuleEntitlement, requireOrgRole, sendError } from "../auth/guards.js";
+import { getOrgPlan } from "../platform/entitlements.js";
 import { INVITATION_TTL_DAYS, CANDIDATE_IMPORT_MAX_BYTES, CANDIDATE_IMPORT_MAX_ROWS } from "../constants.js";
 import { invitationIssuedTemplate } from "../notifications/templates.js";
 import { enqueueOutboundMessage } from "../notifications/queue.js";
@@ -34,7 +35,7 @@ const CreateInvitationSchema = z.object({
   templateCode: z.enum(TEMPLATE_CODES),
 });
 
-const hiringRoles = requireOrgRole("org_admin", "hiring_manager");
+const hiringRoles = [requireOrgRole("org_admin", "hiring_manager"), requireModuleEntitlement("assessments")];
 
 export function registerHiringRoutes(app: FastifyInstance): void {
   // ---------------------------------------------------------------- jobs ----
@@ -318,6 +319,25 @@ export function registerHiringRoutes(app: FastifyInstance): void {
           if (found.rowCount !== 2) {
             return { status: 404, body: { error: "NOT_FOUND" as const } };
           }
+
+          // Plan limit enforcement (Step 36): orgs with an active subscription
+          // that sets a maxActiveAssessments limit are blocked from creating
+          // further invitations once the in-flight count (not yet
+          // expired/revoked) reaches it. Orgs with no subscription (or a plan
+          // that doesn't specify this limit) are unrestricted.
+          const plan = await getOrgPlan(client, orgId);
+          const maxActiveAssessments = plan?.limits.maxActiveAssessments;
+          if (typeof maxActiveAssessments === "number") {
+            const active = await client.query<{ count: number }>(
+              `SELECT count(*)::int AS count FROM invitations
+                WHERE organisation_id = $1 AND status NOT IN ('expired', 'revoked')`,
+              [orgId],
+            );
+            if ((active.rows[0]?.count ?? 0) >= maxActiveAssessments) {
+              return { status: 422, body: { error: "PLAN_LIMIT_REACHED" as const } };
+            }
+          }
+
           const candidateFullName = found.rows.find((r) => r.candidate_full_name)?.candidate_full_name ?? "Candidate";
           const jobTitle = found.rows.find((r) => r.job_title)?.job_title ?? "Role";
           const orgRow = await client.query<{ name: string }>("SELECT name FROM organisations WHERE id = $1", [orgId]);
@@ -388,6 +408,15 @@ export function registerHiringRoutes(app: FastifyInstance): void {
     }
 
     const body = outcome.body as { error?: string };
+    if (body.error === "PLAN_LIMIT_REACHED") {
+      return sendError(
+        reply,
+        outcome.status,
+        body.error,
+        "Your organisation has reached its active assessment limit for the current plan. Contact your platform administrator to request a higher limit.",
+        request.id,
+      );
+    }
     if (body.error) {
       return sendError(reply, outcome.status, body.error, "Candidate, job profile, or published template not found.", request.id);
     }

@@ -2,9 +2,9 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { appendAudit } from "../../db/audit.js";
 import { withOrgTx, type Queryable } from "../../db/pool.js";
-import { requireOrgRole, sendError } from "../auth/guards.js";
+import { requireModuleEntitlement, requireOrgRole, sendError } from "../auth/guards.js";
 
-const adminRole = requireOrgRole("org_admin");
+const adminRole = [requireOrgRole("org_admin"), requireModuleEntitlement("assessments")];
 
 const RecordCalibrationSchema = z.object({
   reviewerUserId: z.string().uuid(),

@@ -2,9 +2,9 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { appendAudit } from "../../db/audit.js";
 import { withOrgTx } from "../../db/pool.js";
-import { requireOrgRole, sendError } from "../auth/guards.js";
+import { requireModuleEntitlement, requireOrgRole, sendError } from "../auth/guards.js";
 
-const managerRoles = requireOrgRole("org_admin", "hiring_manager");
+const managerRoles = [requireOrgRole("org_admin", "hiring_manager"), requireModuleEntitlement("assessments")];
 
 /**
  * Responsible-use acknowledgement (CPF-34). Versioned so that a content

@@ -2,6 +2,7 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import { hashToken } from "@cpf/identity";
 import { withTx, withUserTx } from "../../db/pool.js";
 import { SESSION_SLIDING_TTL_HOURS, STEP_UP_FRESHNESS_MINUTES } from "../constants.js";
+import { getOrgPlan, isModuleEntitled, type ModuleKey } from "../platform/entitlements.js";
 
 export type OrgRole =
   | "platform_admin"
@@ -130,6 +131,13 @@ export async function requireFreshAuth(request: FastifyRequest, reply: FastifyRe
 /**
  * Server-side, deny-by-default role check for org-scoped routes
  * (path parameter `orgId`). Attaches request.orgId on success.
+ *
+ * Also enforces organisation suspension (Delivery Plan Step 35): a suspended
+ * organisation's members get a clear 403 ORG_SUSPENDED on every org-scoped
+ * route. This is a single, indexed primary-key lookup run once per request
+ * (this guard's preHandler runs exactly once), not a repeated query per
+ * role-check — candidate-portal routes are unaffected since they never go
+ * through this guard (token-based auth, not org membership).
  */
 export function requireOrgRole(...roles: OrgRole[]) {
   return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
@@ -153,6 +161,54 @@ export function requireOrgRole(...roles: OrgRole[]) {
       );
       return;
     }
+    const org = await withTx(async (client) => {
+      const result = await client.query<{ status: string }>(
+        "SELECT status FROM organisations WHERE id = $1",
+        [orgId],
+      );
+      return result.rows[0];
+    });
+    if (!org) {
+      await sendError(reply, 404, "NOT_FOUND", "Organisation not found.", request.id);
+      return;
+    }
+    if (org.status === "suspended") {
+      await sendError(
+        reply,
+        403,
+        "ORG_SUSPENDED",
+        "This organisation's access is currently suspended. Contact the platform administrator.",
+        request.id,
+      );
+      return;
+    }
     request.orgId = orgId;
+  };
+}
+
+/**
+ * Gates a route by the organisation's plan-based module entitlement
+ * (Delivery Plan Step 36). Must run AFTER requireOrgRole in the preHandler
+ * chain (needs request.orgId already set). Organisations with no active
+ * subscription default to the pre-Step-35 baseline (see
+ * DEFAULT_MODULE_ENTITLEMENTS) so existing/legacy orgs are unaffected.
+ */
+export function requireModuleEntitlement(moduleKey: ModuleKey) {
+  return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+    const orgId = request.orgId;
+    if (!orgId) {
+      await sendError(reply, 400, "REQUEST_VALIDATION_FAILED", "Missing organisation id.", request.id);
+      return;
+    }
+    const entitled = await withTx(async (client) => isModuleEntitled(await getOrgPlan(client, orgId), moduleKey));
+    if (!entitled) {
+      await sendError(
+        reply,
+        403,
+        "MODULE_NOT_ENTITLED",
+        `Your organisation's plan does not include the "${moduleKey}" module. Contact your platform administrator to upgrade.`,
+        request.id,
+      );
+    }
   };
 }

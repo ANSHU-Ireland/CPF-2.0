@@ -1,9 +1,9 @@
 import type { FastifyInstance } from "fastify";
 import { appendAudit } from "../../db/audit.js";
 import { withOrgTx } from "../../db/pool.js";
-import { requireFreshAuth, requireOrgRole, sendError } from "../auth/guards.js";
+import { requireFreshAuth, requireModuleEntitlement, requireOrgRole, sendError } from "../auth/guards.js";
 
-const orgReadRoles = requireOrgRole("org_admin", "hiring_manager");
+const orgReadRoles = [requireOrgRole("org_admin", "hiring_manager"), requireModuleEntitlement("assessments")];
 const adminRole = requireOrgRole("org_admin");
 
 
@@ -61,7 +61,7 @@ export function registerOrgViewsRoutes(app: FastifyInstance): void {
   /** Review detail with stored criterion scores (reviewer resume / admin oversight). */
   app.get(
     "/v1/orgs/:orgId/reviews/:reviewId",
-    { preHandler: requireOrgRole("org_admin", "reviewer") },
+    { preHandler: [requireOrgRole("org_admin", "reviewer"), requireModuleEntitlement("assessments")] },
     async (request, reply) => {
       const { reviewId } = request.params as { reviewId: string };
       const orgId = request.orgId!;
@@ -109,7 +109,7 @@ export function registerOrgViewsRoutes(app: FastifyInstance): void {
    */
   app.get(
     "/v1/orgs/:orgId/export",
-    { preHandler: [adminRole, requireFreshAuth] },
+    { preHandler: [adminRole, requireModuleEntitlement("assessments"), requireFreshAuth] },
     async (request) => {
       const orgId = request.orgId!;
       const auth = request.auth!;

@@ -8,9 +8,9 @@ import {
 } from "@cpf/assessment-framework";
 import { appendAudit } from "../../db/audit.js";
 import { withOrgTx, type Queryable } from "../../db/pool.js";
-import { requireOrgRole, sendError } from "../auth/guards.js";
+import { requireModuleEntitlement, requireOrgRole, sendError } from "../auth/guards.js";
 
-const reviewerRole = requireOrgRole("reviewer");
+const reviewerRole = [requireOrgRole("reviewer"), requireModuleEntitlement("assessments")];
 
 const ClaimSchema = z.object({
   dimension: CollaborationDimension,
