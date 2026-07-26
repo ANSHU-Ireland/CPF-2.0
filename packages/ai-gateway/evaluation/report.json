@@ -1,0 +1,85 @@
+{
+  "generatedAt": "2026-07-26T13:18:54.193Z",
+  "totalCases": 5,
+  "precision": 1,
+  "recall": 1,
+  "thresholds": {
+    "minPrecision": 0.7,
+    "minRecall": 0.7
+  },
+  "passed": true,
+  "perCase": [
+    {
+      "sessionId": "synthetic-001",
+      "suggested": [
+        "unit tests",
+        "edge cases"
+      ],
+      "expected": [
+        "unit tests",
+        "edge cases"
+      ],
+      "truePositives": 2,
+      "falsePositives": 0,
+      "falseNegatives": 0
+    },
+    {
+      "sessionId": "synthetic-002",
+      "suggested": [
+        "refactored",
+        "full test suite",
+        "no regressions"
+      ],
+      "expected": [
+        "refactored",
+        "full test suite",
+        "no regressions"
+      ],
+      "truePositives": 3,
+      "falsePositives": 0,
+      "falseNegatives": 0
+    },
+    {
+      "sessionId": "synthetic-003",
+      "suggested": [
+        "targeted questions",
+        "manually verified"
+      ],
+      "expected": [
+        "targeted questions",
+        "manually verified"
+      ],
+      "truePositives": 2,
+      "falsePositives": 0,
+      "falseNegatives": 0
+    },
+    {
+      "sessionId": "synthetic-004",
+      "suggested": [
+        "no edits",
+        "no verification note"
+      ],
+      "expected": [
+        "no edits",
+        "no verification note"
+      ],
+      "truePositives": 2,
+      "falsePositives": 0,
+      "falseNegatives": 0
+    },
+    {
+      "sessionId": "synthetic-005",
+      "suggested": [
+        "four prompt revisions",
+        "before writing any code"
+      ],
+      "expected": [
+        "four prompt revisions",
+        "before writing any code"
+      ],
+      "truePositives": 2,
+      "falsePositives": 0,
+      "falseNegatives": 0
+    }
+  ]
+}

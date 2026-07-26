@@ -45,6 +45,9 @@ messages never reach clients. 400 request validation · 401/403 authn/z ·
 | POST | /v1/scoring/evaluate | none* | stateless; nothing persisted; no outcome vocabulary |
 | GET | /v1/orgs/:orgId/acknowledgements/responsible-use | org_admin, hiring_manager | current-version ack status + document content (CPF-34) |
 | POST | /v1/orgs/:orgId/acknowledgements/responsible-use | org_admin, hiring_manager | records ack; 409 STALE_DOCUMENT_VERSION if version mismatched (CPF-34) |
+| GET | /v1/orgs/:orgId/ai/settings | org_admin | AI gateway org-level opt-in status (ADR-0005, CPF-64) |
+| PUT | /v1/orgs/:orgId/ai/settings | org_admin | toggles the AI gateway org-level kill switch (ADR-0005, CPF-64) |
+| POST | /v1/orgs/:orgId/reviews/:reviewId/ai-assist | reviewer | reviewer-assist AI suggestion (AIF-01); org+platform kill switches, budget, allow-list, PII redaction; advisory only, never auto-applied (CPF-64) |
 
 \* Deliberate scope boundary: only non-personal framework content and stateless
 computation are exposed until the identity module (CPF-40) lands. Every future

@@ -5,9 +5,13 @@ import type { Queryable } from "../../db/pool.js";
  * the keys seeded into `plans.module_entitlements` (migration 0012) — keep in
  * sync with any new module added there. "learning" (Step 41) and
  * "intelligence" (Step 43) both have real routes now, gated the same way as
- * "assessments".
+ * "assessments". "ai_gateway" (Step 45) is the org-level half of the AI
+ * gateway's kill switch (ADR-0005) — it defaults to false and, even once an
+ * org is entitled, the org must ALSO opt in via org_ai_settings AND the
+ * platform-level switch must be on. No org has any AI product feature
+ * reachable by default.
  */
-export type ModuleKey = "assessments" | "learning" | "intelligence";
+export type ModuleKey = "assessments" | "learning" | "intelligence" | "ai_gateway";
 
 /**
  * Baseline entitlement for organisations with no active subscription row.
@@ -19,6 +23,7 @@ export const DEFAULT_MODULE_ENTITLEMENTS: Record<ModuleKey, boolean> = {
   assessments: true,
   learning: false,
   intelligence: false,
+  ai_gateway: false,
 };
 
 export interface OrgPlan {
