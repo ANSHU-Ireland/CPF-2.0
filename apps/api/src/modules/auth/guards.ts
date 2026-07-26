@@ -130,6 +130,13 @@ export async function requireFreshAuth(request: FastifyRequest, reply: FastifyRe
 /**
  * Server-side, deny-by-default role check for org-scoped routes
  * (path parameter `orgId`). Attaches request.orgId on success.
+ *
+ * Also enforces organisation suspension (Delivery Plan Step 35): a suspended
+ * organisation's members get a clear 403 ORG_SUSPENDED on every org-scoped
+ * route. This is a single, indexed primary-key lookup run once per request
+ * (this guard's preHandler runs exactly once), not a repeated query per
+ * role-check — candidate-portal routes are unaffected since they never go
+ * through this guard (token-based auth, not org membership).
  */
 export function requireOrgRole(...roles: OrgRole[]) {
   return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
@@ -149,6 +156,27 @@ export function requireOrgRole(...roles: OrgRole[]) {
         403,
         "FORBIDDEN",
         "You do not have the required role in this organisation.",
+        request.id,
+      );
+      return;
+    }
+    const org = await withTx(async (client) => {
+      const result = await client.query<{ status: string }>(
+        "SELECT status FROM organisations WHERE id = $1",
+        [orgId],
+      );
+      return result.rows[0];
+    });
+    if (!org) {
+      await sendError(reply, 404, "NOT_FOUND", "Organisation not found.", request.id);
+      return;
+    }
+    if (org.status === "suspended") {
+      await sendError(
+        reply,
+        403,
+        "ORG_SUSPENDED",
+        "This organisation's access is currently suspended. Contact the platform administrator.",
         request.id,
       );
       return;

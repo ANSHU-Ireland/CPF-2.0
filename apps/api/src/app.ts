@@ -25,6 +25,7 @@ import { registerHiringRoutes } from "./modules/org/hiring.js";
 import { registerReviewRoutes } from "./modules/org/reviews.js";
 import { registerOrgViewsRoutes } from "./modules/org/views.js";
 import { registerPlatformRoutes } from "./modules/platform/routes.js";
+import { registerSubscriptionRoutes } from "./modules/platform/subscriptions.js";
 
 const API_VERSION = "0.1.0";
 
@@ -269,6 +270,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   if (platformMode) {
     registerAuthRoutes(app);
     registerPlatformRoutes(app);
+    registerSubscriptionRoutes(app);
     registerHiringRoutes(app);
     registerCandidatePortalRoutes(app);
     registerReviewRoutes(app);
