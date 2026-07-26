@@ -133,8 +133,8 @@ jobs:
               elif status in {403, 404, 422} and any(
                   marker in message.lower()
                   for marker in (
-                      "not supported on this repository",
-                      "dependency graph",
+                      "dependency review is not supported on this repository",
+                      "dependency graph is not enabled",
                   )
               ):
                   output.write("supported=false\n")
@@ -148,11 +148,6 @@ jobs:
                       f"Unexpected dependency review preflight response: {status}"
                   )
           PY
-
-      - name: Dependency review unavailable
-        if: steps.dependency-review-support.outputs.supported != 'true'
-        run: |
-          echo "Dependency review is skipped because the repository does not currently expose the dependency graph API to this workflow."
 
       - name: Dependency review
         if: steps.dependency-review-support.outputs.supported == 'true'
