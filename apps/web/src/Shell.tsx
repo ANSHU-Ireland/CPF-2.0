@@ -45,6 +45,24 @@ export function Shell(): ReactNode {
   const learningEnabled = learningStatus.data?.enabled === true;
   const isLearningAdmin = rolesInOrg.has("org_admin") || rolesInOrg.has("learning_admin");
 
+  // Same pattern as learning, but with one extra wrinkle: unlike `/learning/status`
+  // (which always returns `enabled: true` once entitlement passes), the
+  // intelligence status route reflects a REAL org-level opt-in toggle
+  // (org_intelligence_settings.enabled) on top of entitlement. So we need
+  // two separate booleans: whether the org is entitled at all (so an admin
+  // can always find the settings page to opt in), and whether it's actually
+  // been switched on (so employee-facing nav only appears once it is).
+  const canSeeIntelligence = Boolean(activeOrgId) && rolesInOrg.size > 0;
+  const intelligenceStatus = useQuery(
+    () =>
+      canSeeIntelligence
+        ? api.get<{ module: string; enabled: boolean }>(`/v1/orgs/${activeOrgId}/intelligence/status`)
+        : Promise.resolve(null),
+    [activeOrgId, canSeeIntelligence],
+  );
+  const intelligenceEntitled = intelligenceStatus.data !== null;
+  const intelligenceEnabled = intelligenceStatus.data?.enabled === true;
+
   if (!authenticated) return <Navigate to={routes.login()} replace />;
 
   const canHire = rolesInOrg.has("org_admin") || rolesInOrg.has("hiring_manager");
@@ -103,6 +121,20 @@ export function Shell(): ReactNode {
             <NavLink to={routes.orgLearningAdmin(activeOrgId)}>Learning admin</NavLink>
             <NavLink to={routes.orgLearningPathways(activeOrgId)}>Pathways</NavLink>
             <NavLink to={routes.orgLearningManagerView(activeOrgId)}>Learning completion</NavLink>
+          </>
+        ) : null}
+        {activeOrgId && intelligenceEnabled ? (
+          <>
+            <NavLink to={routes.orgPainPoints(activeOrgId)}>Pain points</NavLink>
+            <NavLink to={routes.orgIntelligenceTransparency(activeOrgId)}>What's collected</NavLink>
+          </>
+        ) : null}
+        {activeOrgId && isAdmin && intelligenceEntitled ? (
+          <>
+            <NavLink to={routes.orgIntelligenceSettings(activeOrgId)}>Intelligence settings</NavLink>
+            {intelligenceEnabled ? (
+              <NavLink to={routes.orgIntelligenceInsights(activeOrgId)}>Insights dashboard</NavLink>
+            ) : null}
           </>
         ) : null}
         {isPlatformAdmin ? (

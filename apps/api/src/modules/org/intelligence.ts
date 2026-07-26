@@ -86,6 +86,28 @@ const SubmitPainPointSchema = z.object({
 });
 
 export function registerIntelligenceRoutes(app: FastifyInstance): void {
+  // Cheap, any-role smoke check (Step 44) mirroring learning.ts's
+  // `/learning/status` route: lets the web client's nav gating know whether
+  // to show the Pain Points / transparency links without needing the
+  // admin-only settings endpoint. Only checks plan entitlement, not the
+  // stronger requireIntelligenceEnabled gate (that gate is enforced on the
+  // routes that actually read/write data, not on this status probe).
+  app.get(
+    "/v1/orgs/:orgId/intelligence/status",
+    { preHandler: [requireOrgRole("org_admin", "hiring_manager", "reviewer", "learning_admin", "support_agent"), requireModuleEntitlement("intelligence")] },
+    async (request) => {
+      const orgId = request.orgId!;
+      const enabled = await withOrgTx(orgId, async (client) => {
+        const result = await client.query<{ enabled: boolean }>(
+          "SELECT enabled FROM org_intelligence_settings WHERE organisation_id = $1",
+          [orgId],
+        );
+        return result.rows[0]?.enabled ?? false;
+      });
+      return { module: "intelligence" as const, enabled };
+    },
+  );
+
   app.get("/v1/orgs/:orgId/intelligence/settings", { preHandler: adminRoles }, async (request) => {
     const orgId = request.orgId!;
     return withOrgTx(orgId, async (client) => {

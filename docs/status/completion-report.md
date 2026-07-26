@@ -1,19 +1,19 @@
 # Completion Report — CPF Enterprise Ecosystem
 
-Reporting date: 2026-07-26 (seventh build cycle — delivery-plan Steps 40–42:
-Learning data model, Learning APIs, Learning UI) · Reporting standard:
-directive §21 (no premature completion claims). This is the authoritative
-status document.
+Reporting date: 2026-07-26 (eighth build cycle — delivery-plan Steps 43–44:
+Workforce Intelligence backend, Workforce Intelligence UI, MILESTONE) ·
+Reporting standard: directive §21 (no premature completion claims). This is
+the authoritative status document.
 
 **Merge status note:** this report reflects work verified on this step's own
-feature branch (`feat/step-42-learning-ui`, stacked on top of the still-open
-`feat/step-41-learning-apis`, itself stacked on top of `feat/step-40-learning-data-model`).
-Steps 30–41 were each implemented, tested, and reported on their own feature
-branches per the established PR-per-step workflow; at the time of writing
-`main` has Steps 1–29 plus Steps 30 and 37–41 merged — some earlier-numbered
-branches remain open pending user review/merge via the GitHub web UI. This
-section reports the cumulative state across all of them honestly, regardless
-of merge order.
+feature branch (`feat/step-44-intelligence-ui`, stacked on top of the
+still-open `feat/step-43-workforce-intelligence-backend`, itself stacked on
+top of `feat/step-42-learning-ui`). Steps 30–43 were each implemented,
+tested, and reported on their own feature branches per the established
+PR-per-step workflow; at the time of writing `main` has Steps 1–29 plus Steps
+30 and 37–41 merged — some earlier-numbered branches remain open pending
+user review/merge via the GitHub web UI. This section reports the cumulative
+state across all of them honestly, regardless of merge order.
 
 ## Release judgement
 
@@ -28,7 +28,7 @@ remaining)** — employer portal, reviewer workspace, candidate portal, and
 platform administration. No compliance certification is claimed. No real
 candidate data has ever entered this system.
 
-## Fully implemented and tested — 295 automated tests green, 1 intentionally skipped (verified locally 2026-07-26)
+## Fully implemented and tested — 319 automated tests green, 1 intentionally skipped (verified locally 2026-07-26)
 
 | Layer | Evidence |
 |---|---|
@@ -136,6 +136,11 @@ request in the API access log returned 200; no console/network errors.
 2. **Learning APIs (Step 41, CPF-60):** migration 0017 adds `learning_assessment_attempts` (a learner's own practice-mode input + resulting evidence-profile snapshot, again with no FK path into hiring evidence). Full v1 route surface: admin course/module/lesson authoring with a publish step that freezes a sha256 checksum and locks the structure (`409 COURSE_NOT_DRAFT` on any further edit); pathway authoring + ordered course-linking; bulk enrolment; learner-facing progress endpoints (self-scoped, state-machine-gated); and a practice-assessment-attempt endpoint that reuses the real `evaluate()` scoring engine used by the hiring workflow. v1 scope is explicitly course-enrolment only — a pathway-based enrolment gets a clear, honestly disclosed `422`, not silent unsupported behaviour.
 3. **Learning UI (Step 42, MILESTONE):** 3 new learner/admin routes (enrollment detail with per-lesson completion, a learner's own skills profile, and a manager-view completion aggregate) plus 7 new web pages covering the full author → publish → enrol → learn → complete → review journey. The manager-view route is an explicitly disclosed scope reduction: the delivery plan calls for aggregation "by team", but the schema has no team/reporting-line concept (`org_memberships` is flat org+role only), so it aggregates by course, org-wide instead — reusing Step 39's k-anonymity pattern (cells with fewer than 5 enrolled learners are suppressed, never a fabricated exact count). `Shell.tsx` gained the codebase's first client-side module-entitlement check (a cheap status-route probe), gating all Learning navigation.
 
+## Eighth build cycle additions (Steps 43–44, disclosed per §21)
+
+1. **Workforce Intelligence backend (Step 43, CPF-62):** migration 0018 adds `pain_point_reports` (`submitted_by` nullable by design, for genuine anonymous submission) and `org_intelligence_settings` (a per-org opt-in toggle, default off, requiring a fresh works-council/employee-representative acknowledgement on every enable). Every route carries two independent gates: plan-based module entitlement, and a new org-level opt-in gate (`403 INTELLIGENCE_NOT_ENABLED` until an admin has switched it on). Three admin-only aggregate reads (pain-point themes by category, skills-gap by course, AI-adoption participation) are suppressed below a new k-anonymity floor of 8 (higher than the `5` used elsewhere), and no endpoint ever exposes an individual employee's report text, learning record, or adoption status. Two scope reductions were honestly disclosed rather than fabricated: no "ai-literacy tag" concept exists in the schema, so AI-adoption is reinterpreted as practice-attempt participation (documented inline via a `definition` field); and a token-cost endpoint returns an honest `{available:false, reason}` since the AI gateway's usage-logging table (Step 45) doesn't exist yet.
+2. **Workforce Intelligence UI (Step 44, MILESTONE):** `IntelligenceSettingsPage` (org-admin enable/disable flow, client-side enforcing both a representative name and an explicit acknowledgement checkbox on top of the API's own validation), `PainPointsPage` (any org role submits a report, with an anonymous option; admins additionally see the aggregate themes view), `InsightsDashboardPage` (skills-gap, AI-adoption, and token-cost, every section showing its own definition and a data-freshness note), and an employee-facing `TransparencyPage` listing exactly what is, and is never, collected — sourced from two exported constants so tests can assert the "never collected" list renders verbatim. Suppressed cells throughout render as literal text (`"‹8 — suppressed"`), never a blank or a fabricated number. A small new `GET .../intelligence/status` route (open to all org roles, entitlement-gated only) supports nav visibility for non-admin roles, distinct from the admin-only settings route.
+
 ## Defects found and fixed by our own tests this cycle (disclosed per §21)
 
 1. Superuser DB connection silently bypassed RLS → dedicated `cpf_app`/`cpf_api`
@@ -186,9 +191,9 @@ environment).
 
 - File uploads beyond the CSV import path (e.g. resume/document attachments) —
   no binary upload/malware-scanning pipeline exists yet; not required until one is added.
-- Learning module core (data model, APIs, UI) is now implemented (Steps
-  40–42); workforce intelligence, AI gateway, plugin/module framework remain
-  not started (Steps 43–46).
+- Learning module core (data model, APIs, UI) and Workforce Intelligence
+  (backend + UI) are now implemented (Steps 40–44); AI gateway and
+  plugin/module framework remain not started (Steps 45–46).
 - Actual staging/production provisioning — the runbook and container are
   ready (Steps 31–32), but real provisioning needs cloud credentials this
   environment doesn't have (USER-GATED).
@@ -249,15 +254,14 @@ measurement.
    operability — this is not a substitute for a manual assistive-technology
    audit before pilot.
 
-## Verification evidence (commands, this machine, 2026-07-26, sixth cycle)
+## Verification evidence (commands, this machine, 2026-07-26, eighth cycle)
 
 - `npm run typecheck` — clean, strict, all 4 workspaces (including @cpf/web).
-- `npm test` — 254 passed / 0 failed / 1 intentionally-skipped, run twice
-  consecutively for stability (framework 65, identity 17, API 115+1 skip,
-  web 57) with `DATABASE_URL` (restricted role) + `DATABASE_ADMIN_URL` set.
-- `npm audit` — 0 vulnerabilities (across all workspaces incl. @cpf/web).
+- `npm test` — 319 passed / 0 failed / 1 intentionally-skipped, run twice
+  consecutively for stability (framework 68, identity 17, API 156+1 skip,
+  web 78) with `DATABASE_URL` (restricted role) + `DATABASE_ADMIN_URL` set.
 - `npm run build` — succeeds (framework + identity + API build ordering).
-- `npx vite build` (@cpf/web) — succeeds.
+- `npm run build -w @cpf/web` (the actual Vite production build) — succeeds.
 - Live boot: platform mode, bootstrap → login → org creation over HTTP.
 - Live web smoke test: sign-in → real API data rendered → session-restore →
   stub-page/404/sign-out all correct (browser-automated; predates the stub

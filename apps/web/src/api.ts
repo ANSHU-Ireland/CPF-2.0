@@ -613,3 +613,60 @@ export interface ManagerView {
   suppressionNote: string;
 }
 
+// ---------------------------------------------------------------------------
+// Workforce Intelligence (Delivery Plan Steps 43-44)
+// ---------------------------------------------------------------------------
+
+export interface IntelligenceStatus {
+  module: "intelligence";
+  enabled: boolean;
+}
+
+export interface IntelligenceSettings {
+  enabled: boolean;
+  worksCouncilAcknowledgedBy: string | null;
+  worksCouncilAcknowledgedAt: string | null;
+  enabledAt: string | null;
+}
+
+export type PainPointCategory = "workload" | "tooling" | "process" | "management" | "other";
+
+export interface PainPointTheme {
+  category: PainPointCategory;
+  suppressed: boolean;
+  count: number | null;
+}
+
+export interface PainPointThemesView {
+  themes: PainPointTheme[];
+  suppressionNote: string;
+}
+
+export interface SkillsGapCourseRow {
+  courseId: string;
+  title: string;
+  suppressed: boolean;
+  enrolledCount: number | null;
+  completedCount: number | null;
+  completionRate: number | null;
+}
+
+export interface SkillsGapView {
+  courses: SkillsGapCourseRow[];
+  suppressionNote: string;
+}
+
+export interface AiAdoptionView {
+  enrolledCount: number | null;
+  attemptedCount: number | null;
+  participationRate: number | null;
+  definition: string;
+  suppressionNote: string;
+}
+
+export interface TokenCostView {
+  available: boolean;
+  reason: string;
+}
+
+

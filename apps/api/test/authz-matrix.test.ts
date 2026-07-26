@@ -185,6 +185,11 @@ const ROUTE_TABLE: RouteSpec[] = [
     body: { evidenceRetentionDays: 180, integrityRetentionDays: 90, auditRetentionDays: 730, deletionMode: "hard_delete" },
     contentType: "application/json",
   },
+  {
+    method: "GET",
+    path: "/v1/orgs/:orgId/intelligence/status",
+    roles: ["org_admin", "hiring_manager", "reviewer", "learning_admin", "support_agent"],
+  },
   { method: "GET", path: "/v1/orgs/:orgId/intelligence/settings", roles: ["org_admin"] },
   {
     method: "PUT",
