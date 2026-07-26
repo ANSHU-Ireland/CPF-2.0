@@ -122,8 +122,9 @@ jobs:
           except json.JSONDecodeError:
               pass
 
-          # GitHub currently uses these messages when dependency review
-          # is unavailable because dependency graph support is disabled.
+          # As of 2026-07, GitHub currently uses these messages when
+          # dependency review is unavailable because dependency graph
+          # support is disabled for the repository.
           unsupported_messages = (
               "dependency review is not supported on this repository",
               "dependency graph is not enabled",
@@ -138,8 +139,10 @@ jobs:
               if status == 200:
                   output.write("supported=true\n")
                   print("Dependency review API is available for this repository.")
-              # GitHub surfaces unsupported dependency review requests with
-              # client-error responses rather than a stable single status code.
+              # As of 2026-07, GitHub surfaces unsupported dependency review
+              # requests with 403/404/422 client-error responses instead of
+              # a stable single status code when dependency graph support is
+              # disabled for the repository.
               elif status in {403, 404, 422} and any(
                   marker in message.lower()
                   for marker in unsupported_messages
