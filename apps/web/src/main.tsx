@@ -14,6 +14,8 @@ import { SessionsPage } from "./pages/SessionsPage.js";
 import { TeamPage } from "./pages/TeamPage.js";
 import { DataRightsPage } from "./pages/DataRightsPage.js";
 import { CompliancePage } from "./pages/CompliancePage.js";
+import { AnalyticsPage } from "./pages/AnalyticsPage.js";
+import { PlatformAnalyticsPage } from "./pages/PlatformAnalyticsPage.js";
 import { ReviewQueuePage } from "./pages/ReviewQueuePage.js";
 import { ReviewWorkspacePage } from "./pages/ReviewWorkspacePage.js";
 import { EvidenceProfilePage } from "./pages/EvidenceProfilePage.js";
@@ -73,6 +75,7 @@ function AppRoutes(): ReactNode {
       <Route path="/candidate/:token" element={<CandidatePortalPage />} />
       <Route element={<Shell />}>
         <Route path={routes.platformOrgs()} element={<PlatformOrgsPage />} />
+        <Route path={routes.platformAnalytics()} element={<PlatformAnalyticsPage />} />
         <Route path={routes.templates()} element={<TemplatesPage />} />
         <Route path="/org/:orgId/sessions" element={<SessionsPage />} />
         <Route path="/org/:orgId/candidates" element={<CandidatesPage />} />
@@ -80,6 +83,7 @@ function AppRoutes(): ReactNode {
         <Route path="/org/:orgId/team" element={<TeamPage />} />
         <Route path="/org/:orgId/data-rights" element={<DataRightsPage />} />
         <Route path="/org/:orgId/compliance" element={<CompliancePage />} />
+        <Route path={routes.orgAnalytics(":orgId")} element={<AnalyticsPage />} />
         <Route path="/org/:orgId/reviews" element={<ReviewQueuePage />} />
         <Route path="/org/:orgId/reviews/:reviewId" element={<ReviewWorkspacePage />} />
         <Route path="/org/:orgId/sessions/:sessionId/profile" element={<EvidenceProfilePage />} />

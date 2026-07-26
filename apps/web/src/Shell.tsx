@@ -72,9 +72,15 @@ export function Shell(): ReactNode {
             <NavLink to={routes.orgTeam(activeOrgId)}>Team</NavLink>
             <NavLink to={routes.orgDataRights(activeOrgId)}>Data rights</NavLink>
             <NavLink to={routes.orgCompliance(activeOrgId)}>Compliance</NavLink>
+            <NavLink to={routes.orgAnalytics(activeOrgId)}>Analytics</NavLink>
           </>
         ) : null}
-        {isPlatformAdmin ? <NavLink to={routes.platformOrgs()}>Employers</NavLink> : null}
+        {isPlatformAdmin ? (
+          <>
+            <NavLink to={routes.platformOrgs()}>Employers</NavLink>
+            <NavLink to={routes.platformAnalytics()}>Platform analytics</NavLink>
+          </>
+        ) : null}
         <NavLink to={routes.templates()}>Assessment library</NavLink>
         <div className="nav-footer">
           <p className="muted" style={{ padding: "0 var(--space-2)" }}>
