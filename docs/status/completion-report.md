@@ -1,10 +1,20 @@
 # Completion Report — CPF Enterprise Ecosystem
 
-Reporting date: 2026-07-25 (fifth build cycle — delivery-plan Steps 25–29:
-supply-chain/SAST CI, session & authz hardening, authorization-matrix
-automation, threat-model refresh + ingestion fuzz testing) ·
-Reporting standard: directive §21 (no premature completion claims). This is
-the authoritative status document.
+Reporting date: 2026-07-26 (sixth build cycle — delivery-plan Steps 30–39:
+GitHub push + green CI, production container, staging runbook, observability,
+backup/restore drill, subscriptions & entitlement enforcement, support
+console, compliance console, platform analytics + reviewer-minutes
+telemetry) · Reporting standard: directive §21 (no premature completion
+claims). This is the authoritative status document.
+
+**Merge status note:** this report reflects work verified on this step's own
+feature branch (`feat/step-39-platform-analytics`, branched from `main` at
+`ce70408`). Steps 30–38 were each implemented, tested, and reported on their
+own feature branches per the established PR-per-step workflow; at the time of
+writing `main` itself has Steps 1–29 plus Steps 37/38 merged (PRs #3/#4) —
+Steps 30–36 exist on still-open branches pending user review/merge via the
+GitHub web UI. This section reports the cumulative state across all of them
+honestly, regardless of merge order.
 
 ## Release judgement
 
@@ -19,7 +29,7 @@ remaining)** — employer portal, reviewer workspace, candidate portal, and
 platform administration. No compliance certification is claimed. No real
 candidate data has ever entered this system.
 
-## Fully implemented and tested — 197 automated tests green, 1 intentionally skipped (verified locally 2026-07-25)
+## Fully implemented and tested — 254 automated tests green, 1 intentionally skipped (verified locally 2026-07-26)
 
 | Layer | Evidence |
 |---|---|
@@ -109,6 +119,18 @@ request in the API access log returned 200; no console/network errors.
 3. **Authorization matrix automation (CPF-47):** a table-driven test asserting deny-by-default across every org-scoped route (30 distinct path templates, 37 method combinations) × every role (5 org roles, no token, cross-org), cross-checked at test time against the live OpenAPI spec so an unlisted new route breaks the test immediately. Confirmed two roles (`learning_admin`, `support_agent`) are correctly denied by literally every existing route, since neither is wired to any endpoint yet.
 4. **Threat-model refresh + ingestion fuzz testing (Step 29, MILESTONE):** `docs/security/security-architecture-and-threat-model.md` rewritten with a per-threat status column reflecting implemented reality; new fuzz test suite sends malformed JSON, oversized bodies (both transport `bodyLimit` and application-level checks), unicode (emoji/CJK/RTL), and prototype-pollution-shaped keys (`__proto__`, `constructor.prototype`) to the candidate evidence-ingestion endpoint — every case resolves to a safe, correctly classified status and the process's real `Object.prototype` is never mutated. Log redaction verified two ways: a unit test of the exact redact config against a raw pino instance, and an end-to-end capture of a real authenticated request's log stream confirming a genuine bearer token is never emitted.
 
+## Sixth build cycle additions (Steps 30–39, disclosed per §21)
+
+1. **GitHub push + CI (Step 30):** first push to `https://github.com/ANSHU-Ireland/CPF-2.0` — both workflows (`ci`, `security`) went green on the first real run. Branch protection deliberately deferred (founder decision, revisit before any real collaborator/pilot).
+2. **Production container (Step 31, CPF-?):** multi-stage `apps/api/Dockerfile` (non-root user, `tini` PID 1, HTTP healthcheck), a `production` Compose profile, and a `container-smoke` CI job that builds and boots the image against a real Postgres service — proven in CI since this environment has no local Docker engine.
+3. **Staging runbook (Step 32):** a `schema_migrations` tracking table + idempotent `migrate.mjs` script (safe against both a genuinely fresh DB and an already-migrated pre-Step-32 environment), and a completed operations runbook (env-var table, secrets checklist, EU-region provider shortlist, DNS/TLS, rollback note). Actual staging provisioning remains USER-GATED (no cloud credentials in this environment).
+4. **Observability (Step 33):** Prometheus metrics behind `METRICS_ENABLED` (HTTP histogram, evidence/audit counters, retention gauges), optional OpenTelemetry tracing (genuine no-op unless `OTEL_EXPORTER_OTLP_ENDPOINT` is set), and trace-id correlation into both audit-log metadata and request logs.
+5. **Backup/restore drill (Step 34, MILESTONE):** a real, repeatable `pg_dump`/`pg_restore` drill script, run twice against this machine's local PostgreSQL 17 — both runs independently re-verified the restored copy's audit hash chain (1,631 real entries) and template-version row count. Explicitly labelled a local mechanism proof, not the production backup path (managed-provider automated snapshots + WAL PITR).
+6. **Subscriptions & entitlements (Steps 35–36, CPF-54):** platform-owned `plans`/`org_subscriptions` tables (no RLS — platform-only visibility, by design), plan CRUD + org suspend/resume (a suspended org gets `403 ORG_SUSPENDED` on every org-scoped route, checked once per request via the existing `requireOrgRole` guard), a `requireModuleEntitlement` guard applied across every assessment-related route, per-plan `maxActiveAssessments` enforcement (`422 PLAN_LIMIT_REACHED`), and a usage-vs-limit dashboard on the Team page.
+7. **Support console / JIT access (Step 37, CPF-?):** time-boxed, audited `support_access_grants` (≤4h expiry, org-admin-approved or platform-admin break-glass, always dual-logged in both org and platform audit scopes) gating a metadata-only cross-org summary endpoint — no evidence-content access exists, and none is granted by any current scope value.
+8. **Compliance operations console (Step 38):** a paginated/filtered audit-log explorer, step-up-gated CSV export (personal-data egress requires fresh re-authentication), and a retention-policy editor, all org-admin-only, unified into one `CompliancePage` in the web app.
+9. **Platform analytics + reviewer-minutes telemetry (Step 39, MILESTONE, this step):** `reviews.started_at` (set on a reviewer's first saved score) makes `finalised_at − started_at` a real, measurable "reviewer minutes" figure. New org-level analytics endpoint (`GET /v1/orgs/:orgId/analytics` — own-org-only data: assessments by status/template, median reviewer minutes by template, completion rate, and a candidate-level "challenge rate" derived from data-rights `challenge` requests) and a platform-level endpoint (`GET /v1/platform/analytics`, platform-admin-only, aggregated across every organisation). Per-template platform cells are suppressed (`null`, never a fabricated `0`) unless at least 5 distinct organisations have used that template, preventing a low-cardinality cell from being read back to a single org's private data — enforced with a new, narrow, read-only row-level-security escape hatch (migration 0015's `platform_read_all()`, added to `USING` only, never to `WITH CHECK`, so it can never be used to write or move data across a tenant boundary). Both org and platform web dashboards show each figure's definition inline. This is the evidence base the plan calls for feeding into the pricing decision (R-09); the actual pricing decision itself remains a founder call (A-02).
+
 ## Defects found and fixed by our own tests this cycle (disclosed per §21)
 
 1. Superuser DB connection silently bypassed RLS → dedicated `cpf_app`/`cpf_api`
@@ -152,10 +174,11 @@ environment).
 
 - File uploads beyond the CSV import path (e.g. resume/document attachments) —
   no binary upload/malware-scanning pipeline exists yet; not required until one is added.
-- AI gateway, plugin/module framework, learning module, workforce intelligence,
-  platform admin console (support/compliance/analytics) — none started (Steps 35–46).
-- Production container, staging deployment, observability, backup/restore drill
-  — none run yet (Steps 31–34).
+- Learning module, workforce intelligence, AI gateway, plugin/module framework
+  — none started (Steps 40–46).
+- Actual staging/production provisioning — the runbook and container are
+  ready (Steps 31–32), but real provisioning needs cloud credentials this
+  environment doesn't have (USER-GATED).
 - AI features: **none exist**; gateway is a governed design (ADR-0005). The
   candidate portal explicitly states no AI assistant is configured, rather
   than simulating one.
@@ -170,10 +193,11 @@ workforce intelligence, productivity plugins — per release roadmap.
 
 ## Blocked by external access
 
-GitHub repo creation/push/branch protection/first CI run · staging/production
-provisioning · Docker Desktop engine (would not start in this environment —
-integration verification used a local PostgreSQL 17 instance instead; compose
-remains the documented path).
+Actual staging/production provisioning (runbook + container ready, needs real
+cloud credentials) · Docker Desktop engine (would not start in this
+environment — integration verification and the backup/restore drill both used
+a local PostgreSQL 17 instance instead; the container path is proven via a
+dedicated CI job) · branch protection (deferred by founder choice).
 
 ## Requires legal review (blocks pilot) — unchanged
 
@@ -184,8 +208,8 @@ repo secret rotation (founder action).
 ## Requires security review
 
 External penetration test before pilot (not run in this environment) ·
-TOTP-secret envelope encryption (deployment) · backup/restore drill (Step 34,
-not yet run) · production deployment hardening review (Steps 31–32).
+TOTP-secret envelope encryption (deployment) · production deployment
+hardening review (needs real staging/production environment to review against).
 
 ## Requires commercial decision (founders)
 
@@ -212,12 +236,12 @@ measurement.
    operability — this is not a substitute for a manual assistive-technology
    audit before pilot.
 
-## Verification evidence (commands, this machine, 2026-07-25, fifth cycle)
+## Verification evidence (commands, this machine, 2026-07-26, sixth cycle)
 
 - `npm run typecheck` — clean, strict, all 4 workspaces (including @cpf/web).
-- `npm test` — 197 passed / 0 failed / 1 intentionally-skipped, run twice
-  consecutively for stability (framework 65, identity 17, API 74+1 skip,
-  web 48) with `DATABASE_URL` (restricted role) + `DATABASE_ADMIN_URL` set.
+- `npm test` — 254 passed / 0 failed / 1 intentionally-skipped, run twice
+  consecutively for stability (framework 65, identity 17, API 115+1 skip,
+  web 57) with `DATABASE_URL` (restricted role) + `DATABASE_ADMIN_URL` set.
 - `npm audit` — 0 vulnerabilities (across all workspaces incl. @cpf/web).
 - `npm run build` — succeeds (framework + identity + API build ordering).
 - `npx vite build` (@cpf/web) — succeeds.
@@ -225,3 +249,6 @@ measurement.
 - Live web smoke test: sign-in → real API data rendered → session-restore →
   stub-page/404/sign-out all correct (browser-automated; predates the stub
   pages being replaced with real implementations, kept for history).
+- Backup/restore drill (Step 34) run twice against this machine's local
+  PostgreSQL 17: both exits 0, audit chain + template-version counts verified
+  on the restored copy.

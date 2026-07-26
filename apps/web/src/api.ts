@@ -459,6 +459,37 @@ export interface RetentionPolicyResponse {
   nextDueEstimateNote: string;
 }
 
+export interface AnalyticsByStatus {
+  status: string;
+  count: number;
+}
+
+export interface AnalyticsByTemplate {
+  templateCode: string;
+  sessionCount: number;
+  medianReviewerMinutes: number | null;
+}
+
+export interface OrgAnalytics {
+  assessmentsByStatus: AnalyticsByStatus[];
+  byTemplate: AnalyticsByTemplate[];
+  completionRate: { startedCount: number; completedCount: number; rate: number | null; definition: string };
+  challengeRate: { reportedCount: number; challengedCount: number; rate: number | null; definition: string };
+}
+
+export interface PlatformAnalyticsByTemplate {
+  templateCode: string;
+  suppressed: boolean;
+  sessionCount: number | null;
+  medianReviewerMinutes: number | null;
+}
+
+export interface PlatformAnalytics {
+  totalAssessmentsByStatus: AnalyticsByStatus[];
+  byTemplate: PlatformAnalyticsByTemplate[];
+  suppressionNote: string;
+}
+
 export interface CandidatePortalView {
   candidateName: string;
   invitationStatus: string;

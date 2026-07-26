@@ -18,6 +18,7 @@ import { InMemoryRateLimitStore } from "./modules/rate-limit.js";
 import { registerAuthRoutes } from "./modules/auth/routes.js";
 import { registerCandidatePortalRoutes } from "./modules/candidate/portal.js";
 import { registerAcknowledgementRoutes } from "./modules/org/acknowledgements.js";
+import { registerOrgAnalyticsRoutes } from "./modules/org/analytics.js";
 import { registerCalibrationRoutes } from "./modules/org/calibration.js";
 import { registerClaimsRoutes } from "./modules/org/claims.js";
 import { registerComplianceRoutes } from "./modules/org/compliance.js";
@@ -27,6 +28,7 @@ import { registerLearningRoutes } from "./modules/org/learning.js";
 import { registerReviewRoutes } from "./modules/org/reviews.js";
 import { registerOrgViewsRoutes } from "./modules/org/views.js";
 import { registerUsageRoutes } from "./modules/org/usage.js";
+import { registerPlatformAnalyticsRoutes } from "./modules/platform/analytics.js";
 import { registerPlatformRoutes } from "./modules/platform/routes.js";
 import { registerSupportAccessRoutes } from "./modules/platform/support-access.js";
 import { registerSubscriptionRoutes } from "./modules/platform/subscriptions.js";
@@ -287,6 +289,8 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     registerLearningRoutes(app);
     registerSupportAccessRoutes(app);
     registerComplianceRoutes(app);
+    registerOrgAnalyticsRoutes(app);
+    registerPlatformAnalyticsRoutes(app);
   } else {
     app.log.info(
       "DATABASE_URL not configured — running in framework-only mode (non-personal catalogue + stateless evaluation). Platform endpoints are disabled.",

@@ -341,7 +341,8 @@ export function registerReviewRoutes(app: FastifyInstance): void {
             return { error: "NOT_FOUND" as const };
           }
           if (row.status === "assigned" && actor === "reviewer1") {
-            await client.query("UPDATE reviews SET status = $1 WHERE id = $2", [
+            // Step 39: first score save is the reviewer-minutes clock start.
+            await client.query("UPDATE reviews SET status = $1, started_at = now() WHERE id = $2", [
               reviewMachine.next("assigned", "begin"),
               reviewId,
             ]);

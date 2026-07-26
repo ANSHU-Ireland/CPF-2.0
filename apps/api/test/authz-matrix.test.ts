@@ -121,6 +121,7 @@ const ROUTE_TABLE: RouteSpec[] = [
   { method: "GET", path: "/v1/orgs/:orgId/audit/search", roles: ["org_admin"] },
   { method: "GET", path: "/v1/orgs/:orgId/audit/export", roles: ["org_admin"] },
   { method: "GET", path: "/v1/orgs/:orgId/retention-policy", roles: ["org_admin"] },
+  { method: "GET", path: "/v1/orgs/:orgId/analytics", roles: ["org_admin"] },
   {
     method: "PUT",
     path: "/v1/orgs/:orgId/retention-policy",
