@@ -128,6 +128,7 @@ jobs:
               "dependency review is not supported on this repository",
               "dependency graph is not enabled",
           )
+          max_error_message_length = 200
 
           output_path = os.environ.get("GITHUB_OUTPUT")
           if not output_path:
@@ -151,7 +152,7 @@ jobs:
               else:
                   print(
                       "Dependency review preflight failed with status "
-                      f"{status}: {message[:200]}"
+                      f"{status}: {message[:max_error_message_length]}"
                   )
                   raise SystemExit(
                       f"Unexpected dependency review preflight response: {status}"
