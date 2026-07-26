@@ -185,6 +185,12 @@ request in the API access log returned 200; no console/network errors.
    catalogue from the existing `GET /v1/framework/templates` API route
    instead of importing package internals; the standing convention from
    defect #5 has been reinforced in repo memory given this repeat.
+9. **(Ninth cycle, Step 47 accessibility audit)** Two design tokens failed
+   real WCAG 2.2 AA 4.5:1 contrast math (`color.status.warning` 4.10:1,
+   `color.band.strong` with white text 3.86:1 — the latter a live defect in
+   `EvidenceBandBadge`'s highest band) — both corrected
+   (`#A75F00`/`#5277A6`), verified via computed sRGB relative-luminance, not
+   visual estimate. See [docs/design/design-system-and-experience.md](design/design-system-and-experience.md).
 ## Implemented, awaiting first CI execution
 
 GitHub Actions workflows (typecheck/test/audit/build + migrations + the same
@@ -205,6 +211,13 @@ environment).
 - Actual staging/production provisioning — the runbook and container are
   ready (Steps 31–32), but real provisioning needs cloud credentials this
   environment doesn't have (USER-GATED).
+- **(Step 47)** A real NVDA/VoiceOver screen-reader pass on the 4 priority
+  screens (login, candidate portal full journey, reviewer workspace, evidence
+  profile) — this environment has no assistive technology available to drive
+  interactively; 29/29 automated axe tests pass (zero violations, extended to
+  all 27 pages this step) and contrast/keyboard-order were verified
+  independently (see design doc), but the manual AT pass itself remains an
+  open item for a human tester before pilot (USER-GATED).
 - AI features: the gateway (ADR-0005) and its single reviewer-assist endpoint
   are implemented and tested (Step 45), but no AI provider is configured in
   this environment, so the endpoint honestly returns
