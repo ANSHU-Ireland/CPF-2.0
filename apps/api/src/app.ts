@@ -20,6 +20,7 @@ import { registerCandidatePortalRoutes } from "./modules/candidate/portal.js";
 import { registerAcknowledgementRoutes } from "./modules/org/acknowledgements.js";
 import { registerCalibrationRoutes } from "./modules/org/calibration.js";
 import { registerClaimsRoutes } from "./modules/org/claims.js";
+import { registerComplianceRoutes } from "./modules/org/compliance.js";
 import { registerDataRightsRoutes } from "./modules/org/data-rights.js";
 import { registerHiringRoutes } from "./modules/org/hiring.js";
 import { registerLearningRoutes } from "./modules/org/learning.js";
@@ -285,6 +286,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     registerUsageRoutes(app);
     registerLearningRoutes(app);
     registerSupportAccessRoutes(app);
+    registerComplianceRoutes(app);
   } else {
     app.log.info(
       "DATABASE_URL not configured — running in framework-only mode (non-personal catalogue + stateless evaluation). Platform endpoints are disabled.",

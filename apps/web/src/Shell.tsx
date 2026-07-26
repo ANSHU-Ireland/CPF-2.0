@@ -71,6 +71,7 @@ export function Shell(): ReactNode {
           <>
             <NavLink to={routes.orgTeam(activeOrgId)}>Team</NavLink>
             <NavLink to={routes.orgDataRights(activeOrgId)}>Data rights</NavLink>
+            <NavLink to={routes.orgCompliance(activeOrgId)}>Compliance</NavLink>
           </>
         ) : null}
         {isPlatformAdmin ? <NavLink to={routes.platformOrgs()}>Employers</NavLink> : null}
